@@ -63,11 +63,20 @@ def login():
 
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT role FROM users WHERE username=? AND password=?", (username, hashedPassword))
+        cursor.execute(
+            "SELECT role FROM users WHERE username=? AND password=?",
+            (username, hashedPassword)
+        )
         result = cursor.fetchone()
 
         if result:
             role = result[0]
+            cursor.execute(
+                "UPDATE users SET isLoggedIn = 1 WHERE username = ?",
+                (username,)
+            )
+            conn.commit()
+
             print(f"\n✅ Login successful! Logged in as {role} ({username})")
             return {"username": username, "role": role}
         else:
