@@ -8,7 +8,7 @@ def main():
     init_db()
     
     controller = UserController()  
-
+    controller.display_users()
     controller.add_user()
 
     user = None
