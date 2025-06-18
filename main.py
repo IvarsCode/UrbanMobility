@@ -1,4 +1,5 @@
-from db import init_db
+from Models.db import init_db
+
 
 def main():
     print("Welcome to Urban Mobility Backend System")
