@@ -1,10 +1,12 @@
 from login import login
 from db import init_db
+from login import *
 
 def main():
     print("Welcome to Urban Mobility Backend System")
     init_db()
     
+    add_user()
     user = None
     while not user:
         user = login()
