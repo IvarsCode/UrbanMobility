@@ -14,7 +14,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            role TEXT NOT NULL CHECK (role IN ('ServiceEngineer', 'SystemAdministrator', 'SuperAdministrator'))
+            role TEXT NOT NULL CHECK (role IN ('ServiceEngineer', 'SystemAdministrator', 'SuperAdministrator')),
+            isLoggedIn BOOLEAN NOT NULL DEFAULT 0 
+
         )
         ''')
 

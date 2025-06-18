@@ -1,7 +1,5 @@
-from db import get_connection
-#from input_password import input_password
-
-import sys
+import sys 
+import hashlib
 
 def input_password(prompt="Password: "):
     print(prompt, end="", flush=True)
@@ -50,21 +48,6 @@ def input_password(prompt="Password: "):
 
     return password
 
-
-def login():
-    print("=== Urban Mobility Login ===")
-    username = input("Username: ")
-    password = input_password("Password: ")
-
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT role FROM users WHERE username=? AND password=?", (username, password))
-        result = cursor.fetchone()
-
-        if result:
-            role = result[0]
-            print(f"\n✅ Login successful! Logged in as {role} ({username})")
-            return {"username": username, "role": role}
-        else:
-            print("\n❌ Login failed. Invalid username or password.")
-            return None
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256."""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
