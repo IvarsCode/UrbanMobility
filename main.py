@@ -1,5 +1,7 @@
 from Models.db import init_db
+
 from Controllers.userController import UserController
+
 
 def main():
     print("Welcome to Urban Mobility Backend System")
@@ -8,6 +10,7 @@ def main():
     controller = UserController()  
 
     controller.add_user()
+
     user = None
     while not user:
         user = controller.login()
@@ -22,6 +25,7 @@ def main():
     elif user["role"] == "super_admin":
         print("Loading Super Administrator Menu...")
         # super_admin_menu(user)
+
 
 if __name__ == "__main__":
     main()
