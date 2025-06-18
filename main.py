@@ -1,10 +1,11 @@
+from Models.db import init_db
 from login import login
-from db import init_db
+
 
 def main():
     print("Welcome to Urban Mobility Backend System")
     init_db()
-    
+
     user = None
     while not user:
         user = login()
@@ -19,6 +20,7 @@ def main():
     elif user["role"] == "super_admin":
         print("Loading Super Administrator Menu...")
         # super_admin_menu(user)
+
 
 if __name__ == "__main__":
     main()
