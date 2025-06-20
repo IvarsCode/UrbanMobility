@@ -1,19 +1,20 @@
 # auth/login.py
 
 from db.database import get_connection
-from auth.password import verify_password
+from auth.password import verify_password, input_password
 from auth.passwordHash import hash_password
 from Models.user import User
 from Utils.logger import Logger
+from ui.terminal import clear_terminal
 
 logger = Logger()
 
 
 def login():
-
+    clear_terminal()
     print("=== Urban Mobility Backend Login ===")
     username = input("Username: ").strip()
-    password = input("Password: ").strip()
+    password = input_password("Password: ").strip()
     hashed_pw = hash_password(password)
     conn = get_connection()
     cur = conn.cursor()
@@ -44,6 +45,7 @@ def login():
 
 
 def logOut(user):
+    clear_terminal()
     print("=== Urban Mobility Logout ===")
     username = input("Enter your username to logout: ").strip()
 

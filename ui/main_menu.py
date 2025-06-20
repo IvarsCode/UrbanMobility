@@ -5,6 +5,7 @@ from Models.user import User
 from Models.scooter import Scooter, manage_scooter
 from Models.traveler import manage_traveller
 from Utils.logger import Logger
+from ui.terminal import clear_terminal
 
 logger = Logger()
 
@@ -55,17 +56,23 @@ def systemAdmin(user: User):
         choice = input("Select an option: ").strip()
 
         if choice == "1":
+            clear_terminal()
             user.display_users()
         elif choice == "2":
+            clear_terminal()
             user.manageServiceEngineers()
         elif choice == "3":
+            clear_terminal()
             manage_traveller()
         elif choice == "4":
+            clear_terminal()
             manage_scooter()
         elif choice == "5":
+            clear_terminal()
             print("Goodbye!")
             break
         else:
+            clear_terminal()
             print("[ERROR] Invalid choice.")
 
 
