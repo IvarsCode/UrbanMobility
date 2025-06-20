@@ -17,36 +17,45 @@ class User:
         self.role = role
 
     def add_user(self):
+        
+        username = input("Enter username: ").strip()
+        password = input_password("Enter password: ").strip()
+        confirm_password = input_password("Confirm password: ").strip()
+
+        if password != confirm_password:
+            print("Passwords do not match.")
+            return
+        match self.role:
+            case "super_administrator":
+                print("=== Adding new user ===")
+                print("\nRole of the new user:")
+                print("1. service engineer")
+                print("2. system administrator")
+                role_choice = input("Enter number (1 or 2): ").strip()
+
+                role_map = {
+                    "1": "service_engineer",
+                    "2": "system_administrator"
+                }
+                role = role_map.get(role_choice)
+
+                if not role:
+                    print("invalid role selected.")
+                    return
+            case "system_administrator":
+                print("=== Adding new service engineer ===")
+                role = "service_engineer"
+            case "service_engineer":
+                print("You are unauthorized to add a user")
+                return
+        
+        first_name = input("Enter first name: ").strip()
+        last_name = input("Enter last name: ").strip()
+        
         try:
-            username = input("Enter username: ").strip()
-            password = input_password("Enter password: ").strip()
-            confirm_password = input_password("Confirm password: ").strip()
-
-            if password != confirm_password:
-                print("Passwords do not match.")
-                return
-
-            print("\nSelect role:")
-            print("1. service_engineer")
-            print("2. system_administrator")
-            role_choice = input("Enter number (1 or 2): ").strip()
-
-            role_map = {
-                "1": "service_engineer",
-                "2": "system_administrator"
-            }
-            role = role_map.get(role_choice)
-
-            if not role:
-                print("invalid role selected.")
-                return
-
-            first_name = input("Enter first name: ").strip()
-            last_name = input("Enter last name: ").strip()
-
             with get_connection() as conn:
                 cursor = conn.cursor()
-
+                #print(f"username: {username} ({type(username)})")
                 # Check if username exists
                 cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 if cursor.fetchone():
@@ -57,10 +66,17 @@ class User:
 
                 # Insert into users table
                 cursor.execute('''
-                    INSERT INTO users (username, password, role) VALUES (?, ?, ?)
+                    INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
                 ''', (username, hashed_password, role))
+                #print(f"2 username: {username} ({type(username)})")
+                # get userId
+                cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+                user_id_row = cursor.fetchone()
+                if user_id_row is None:
+                    print("User not found after insert — unexpected.")
+                    return
 
-                user_id = cursor.lastrowid
+                user_id = user_id_row[0]
                 reg_date = datetime.now().strftime("%Y-%m-%d")
 
                 # Insert into profiles table
@@ -74,6 +90,7 @@ class User:
 
         except sqlite3.Error as e:
             print("Database error:", e)
+        
 
     def display_users(self):
         

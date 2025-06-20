@@ -29,7 +29,8 @@ def initialize_db():
     )
 
     # Profiles table
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS profiles (
         user_id INTEGER PRIMARY KEY,
         first_name TEXT NOT NULL,
@@ -37,10 +38,12 @@ def initialize_db():
         registration_date TEXT NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
-    ''')
+    """
+    )
 
     # Scooters table
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS scooters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         brand TEXT NOT NULL,
@@ -58,10 +61,12 @@ def initialize_db():
         last_maintenance TEXT,
         in_service_date TEXT NOT NULL
     )
-    ''')
+    """
+    )
 
     # Travellers table
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS travellers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         first_name TEXT NOT NULL,
@@ -76,10 +81,12 @@ def initialize_db():
         mobile_phone TEXT NOT NULL,
         driving_license_number TEXT NOT NULL
     )
-    ''')
+    """
+    )
 
     # Logs table
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         log_date TEXT NOT NULL,
@@ -89,10 +96,12 @@ def initialize_db():
         additional_info TEXT,
         suspicious INTEGER NOT NULL DEFAULT 0
     )
-    ''')
+    """
+    )
 
     # Backups table
-    cur.execute('''
+    cur.execute(
+        """
     CREATE TABLE IF NOT EXISTS backups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_name TEXT NOT NULL,
@@ -102,7 +111,8 @@ def initialize_db():
         assigned_to TEXT,
         used INTEGER DEFAULT 0
     )
-    ''')
+    """
+    )
 
     # Check if super_admin exists
     cur.execute(
@@ -112,7 +122,7 @@ def initialize_db():
         hashed_pw = hash_password("Admin_123?")
         cur.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-            ("super_admin", hashed_pw, "super_admin"),
+            ("super_admin", hashed_pw, "super_administrator"),
         )
         print("[INFO] Super Admin created with username: super_admin")
 

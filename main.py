@@ -1,6 +1,7 @@
 import sys
 from db.database import initialize_db
 from ui.main_menu import start_app
+from Utils.DummyDataScooter import insert_dummy_scooters
 
 
 def main():
