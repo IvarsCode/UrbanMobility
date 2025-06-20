@@ -1,24 +1,14 @@
-from Models.db import init_db
-from Utils import *
-from Controllers.userController import UserController
-#insert_dummy_scooters(50)  #run to run
+import sys
+from db.database import initialize_db
+from ui.main_menu import start_app
+
 
 def main():
-    print("Welcome to Urban Mobility Backend System")
-    init_db()
-     
-    
-    controller = UserController()  
-    
-    #controller.display_users()
-    #controller.add_user()
-
-    user = None
-    while not user:
-        user = controller.login()
-        controller.show_menu(user)
-
-    
+    try:
+        initialize_db()
+        start_app()
+    except Exception as e:
+        print("[FATAL ERROR]", str(e))
 
 
 if __name__ == "__main__":

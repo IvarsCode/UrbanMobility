@@ -1,5 +1,19 @@
-import sys 
+# auth/password.py
+
+import os
 import hashlib
+import base64
+import sys
+from db.database import get_connection
+from auth.passwordHash import hash_password
+
+
+def verify_password(password: str, stored: str) -> bool:
+    decoded = base64.b64decode(stored.encode())
+    salt = decoded[:16]
+    key = decoded[16:]
+    new_key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
+    return new_key == key
 
 def input_password(prompt="Password: "):
     print(prompt, end="", flush=True)
@@ -48,6 +62,34 @@ def input_password(prompt="Password: "):
 
     return password
 
-def hash_password(password: str) -> str:
-    """Hash a password using SHA-256."""
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+def update_password():
+    print("=== Update Password ===")
+    username = input("Enter your username: ").strip()
+    old_password = input_password("Enter your old password: ").strip()
+    new_password = input_password("Enter your new password: ").strip()
+    confirm_new_password = input_password("Confirm your new password: ").strip()
+
+    if new_password != confirm_new_password:
+        print("New passwords do not match.")
+        return
+
+    hashed_old_password = hash_password(old_password)
+    hashed_new_password = hash_password(new_password)
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM users WHERE username=? AND password=?",
+            (username, hashed_old_password)
+        )
+        user_id = cursor.fetchone()
+
+        if user_id:
+            cursor.execute(
+                "UPDATE users SET password=? WHERE id=?",
+                (hashed_new_password, user_id[0])
+            )
+            conn.commit()
+            print("Password updated successfully.")
+        else:
+            print("Invalid username or old password.")

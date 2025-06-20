@@ -1,6 +1,6 @@
 import sqlite3
 import random
-from Models.db import get_connection
+from db.database import get_connection
 from datetime import datetime, timedelta
 
 # Connect
