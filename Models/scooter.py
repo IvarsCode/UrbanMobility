@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+from db.database import get_connection
 
 class Scooter:
     def __init__(
@@ -59,3 +60,54 @@ class Scooter:
 
     def __repr__(self):
         return f"<Scooter {self.serialNumber} - {self.brand} {self.model}>"
+    
+
+    def search_scooter(self):
+        print("=== Search for Scooter ===")
+        print("1. search on Brand")
+        print("2. search on Model")
+        print("3. search on Serial Number")
+        print("4. search on ID")
+        search_choice = input("Select search option: ").strip()
+
+        if search_choice == "1":
+            brand = input("Enter scooter brand: ").strip()
+            self._search_scooter("brand", brand)
+        elif search_choice == "2":
+            model = input("Enter scooter model: ").strip()
+            self._search_scooter("model", model)
+        elif search_choice == "3":
+            serial_number = input("Enter scooter serial number: ").strip()
+            self._search_scooter("serial_number", serial_number)
+        elif search_choice == "4":
+            scooter_id = input("Enter scooter ID: ").strip()
+            self._search_scooter("id", scooter_id)
+        else:
+            print("Invalid search option.")
+
+    def _search_scooter(self, column, value):
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT * FROM scooters WHERE {column}=?",
+                (value,)
+            )
+            scooter = cursor.fetchone()
+
+            if scooter:
+                print(f"Scooter found:"
+                    f"\nID = {scooter[0]}"
+                    f"\nBrand = {scooter[1]}"
+                    f"\nModel = {scooter[2]}"
+                    f"\nSerial Number = {scooter[3]}"
+                    f"\nTop Speed = {scooter[4]} km/h"
+                    f"\nBattery Capacity = {scooter[5]} Wh"
+                    f"\nState of Charge = {scooter[6]}%"
+                    f"\nTarget Range SoC = [{scooter[7]}%, {scooter[8]}%]"
+                    f"\nLocation (lat,long)= ({scooter[9]}, {scooter[10]})"
+                    f"\nOut of Service = {scooter[11]}"
+                    f"\nMileage = {scooter[12]} km"
+                    f"\nLast Maintenance Date = {scooter[13]}"
+                    f"\nIn Service Date = {scooter[14]}")
+            else:
+                print("Scooter not found.")
