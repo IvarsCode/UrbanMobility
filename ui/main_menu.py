@@ -2,8 +2,12 @@
 
 from auth.login import login
 from Models.user import User
-from Models.scooter import updateScooter
-import re
+from Models.scooter import Scooter, manage_scooter
+from Models.traveler import manage_traveller
+from Utils.logger import Logger
+
+logger = Logger()
+
 
 
 def start_app():
@@ -88,7 +92,8 @@ def superAdmin(user: User):
         elif choice == "4":
             pass
         elif choice == "5":
-            pass
+            print("=== Logs ===")
+            logger.read_logs()
         elif choice == "6":
             pass
         elif choice == "7":
