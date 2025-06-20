@@ -9,7 +9,6 @@ from Utils.logger import Logger
 logger = Logger()
 
 
-
 def start_app():
     user = login()
     if not user:
@@ -35,7 +34,7 @@ def serviceEngineer(user: User):
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            updateScooter()
+            Scooter.update_scooter()
             return
         elif choice == "2":
             print("Goodbye!")
@@ -60,9 +59,9 @@ def systemAdmin(user: User):
         elif choice == "2":
             user.manageServiceEngineers()
         elif choice == "3":
-            user.manageTravellers()
+            manage_traveller()
         elif choice == "4":
-            user.manageScooters()
+            manage_scooter()
         elif choice == "5":
             print("Goodbye!")
             break
@@ -88,9 +87,9 @@ def superAdmin(user: User):
         elif choice == "2":
             user.add_user()
         elif choice == "3":
-            pass
+            manage_traveller()
         elif choice == "4":
-            pass
+            manage_scooter()
         elif choice == "5":
             print("=== Logs ===")
             logger.read_logs()
