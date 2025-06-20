@@ -9,47 +9,60 @@ class Scooter:
         brand: str,
         model: str,
         serialNumber: str,  # 10 to 17 alphanumeric characters
-        topSpeed: int,  # in km/h
-        batteryCapacity: int,  # in watt-hours (Wh)
-        SoC: float,  # State of Charge in percentage
-        targetRangeSoC: list[float],  # [min, max] SoC in percentage
+        topSpeed: int,  # km/h
+        batteryCapacity: int,  # Wh
+        SoC: float,  # percentage
+        targetRangeSoC: list[float],  # [min, max] percentage
         location: list[float],  # [latitude, longitude]
-        outOfService: bool,  # True/False
+        outOfService: bool,
         mileage: float,  # in kilometers
-        lastMaintenanceDate: str,  # ISO 8601 format: YYYY-MM-DD
+        lastMaintenanceDate: str,  # YYYY-MM-DD
     ):
-        # Validate serial number format
-        if not re.fullmatch(r"[A-Za-z0-9]{10,17}", serialNumber):
-            raise ValueError("Serial number must be 10 to 17 alphanumeric characters.")
+        # === VALIDATION ===
+        if not brand or len(brand) < 2:
+            raise ValueError("Brand must be at least 2 characters.")
 
-        # Validate location (Rotterdam GPS coordinates range)
-        lat, lon = location
-        if not (51.85 <= lat <= 51.98 and 4.35 <= lon <= 4.55):
-            raise ValueError("Location must be within the Rotterdam region.")
+        if not model or len(model) < 1:
+            raise ValueError("Model must be provided.")
 
-        # Validate location decimal precision
-        if round(lat, 5) != lat or round(lon, 5) != lon:
+        if not re.fullmatch(r"[A-Z0-9]{10,17}", serialNumber):
             raise ValueError(
-                "Latitude and longitude must be specified to 5 decimal places."
+                "Serial number must be 10 to 17 alphanumeric characters (uppercase A–Z, 0–9)."
             )
 
-        # Validate SoC and target SoC range
         if not (0 <= SoC <= 100):
-            raise ValueError("State of Charge (SoC) must be between 0 and 100.")
-        if not (0 <= targetRangeSoC[0] <= targetRangeSoC[1] <= 100):
+            raise ValueError("SoC must be between 0 and 100.")
+
+        if (
+            not isinstance(targetRangeSoC, list)
+            or len(targetRangeSoC) != 2
+            or not all(isinstance(val, (int, float)) for val in targetRangeSoC)
+            or not (0 <= targetRangeSoC[0] <= 100)
+            or not (0 <= targetRangeSoC[1] <= 100)
+            or targetRangeSoC[0] > targetRangeSoC[1]
+        ):
             raise ValueError(
-                "Target range SoC must be within 0 to 100 and in increasing order."
+                "targetRangeSoC must be a list of two percentages [min, max] between 0 and 100."
             )
 
-        # Validate last maintenance date
+        if (
+            not isinstance(location, list)
+            or len(location) != 2
+            or not (-90 <= location[0] <= 90)
+            or not (-180 <= location[1] <= 180)
+        ):
+            raise ValueError(
+                "Location must be a list [latitude, longitude] with valid GPS ranges."
+            )
+
+        if mileage < 0:
+            raise ValueError("Mileage must be non-negative.")
+
         try:
             datetime.strptime(lastMaintenanceDate, "%Y-%m-%d")
         except ValueError:
-            raise ValueError(
-                "Last maintenance date must be in ISO 8601 format: YYYY-MM-DD"
-            )
+            raise ValueError("Last maintenance date must be in YYYY-MM-DD format.")
 
-        # Set attributes
         self.brand = brand
         self.model = model
         self.serialNumber = serialNumber
@@ -62,223 +75,260 @@ class Scooter:
         self.mileage = mileage
         self.lastMaintenanceDate = lastMaintenanceDate
 
-        # Automatically set in-service date to current time (ISO 8601 format)
-        self.inServiceDate = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    def add_to_db(self):
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+            INSERT INTO scooters (
+                brand, model, serial_number, top_speed, battery_capacity,
+                soc, target_range_min, target_range_max,
+                latitude, longitude, out_of_service,
+                mileage, last_maintenance
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    self.brand,
+                    self.model,
+                    self.serialNumber,
+                    self.topSpeed,
+                    self.batteryCapacity,
+                    self.SoC,
+                    self.targetRangeSoC[0],
+                    self.targetRangeSoC[1],
+                    self.location[0],
+                    self.location[1],
+                    int(self.outOfService),  # Store boolean as 0/1
+                    self.mileage,
+                    self.lastMaintenanceDate,
+                ),
+            )
+        conn.commit()
+        print("[SUCCESS] Scooter added to database.")
 
-    def __repr__(self):
-        return f"<Scooter {self.serialNumber} - {self.brand} {self.model}>"
+    @staticmethod
+    def delete_scooter():
+        print("=== Delete Scooter ===")
+        scooter_id = input("Enter scooter ID to delete: ").strip()
+
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM scooters WHERE id = ?", (scooter_id,))
+            conn.commit()
+            print("[SUCCESS] Scooter deleted.")
+
+    @staticmethod
+    def update_scooter():
+        print("=== Update Scooter ===")
+        scooter_id = input("Enter scooter ID to update: ").strip()
+
+        fields = {
+            "brand": {
+                "pattern": r".{2,}",
+                "error": "Brand must be at least 2 characters.",
+            },
+            "model": {
+                "pattern": r".{1,}",
+                "error": "Model must be at least 1 character.",
+            },
+            "serial_number": {
+                "pattern": r"[A-Z0-9]{10,17}",
+                "error": "Serial number must be 10–17 uppercase alphanumeric characters.",
+            },
+            "top_speed": {
+                "validator": lambda x: (
+                    int(x) if int(x) > 0 else ValueError("Must be positive.")
+                )
+            },
+            "battery_capacity": {
+                "validator": lambda x: (
+                    int(x) if int(x) > 0 else ValueError("Must be positive.")
+                )
+            },
+            "soc": {
+                "validator": lambda x: (
+                    float(x)
+                    if 0 <= float(x) <= 100
+                    else ValueError("SoC must be 0–100.")
+                )
+            },
+            "target_range_min": {
+                "validator": lambda x: (
+                    float(x) if 0 <= float(x) <= 100 else ValueError("Must be 0–100.")
+                )
+            },
+            "target_range_max": {
+                "validator": lambda x: (
+                    float(x) if 0 <= float(x) <= 100 else ValueError("Must be 0–100.")
+                )
+            },
+            "latitude": {
+                "validator": lambda x: (
+                    float(x)
+                    if -90 <= float(x) <= 90
+                    else ValueError("Invalid latitude.")
+                )
+            },
+            "longitude": {
+                "validator": lambda x: (
+                    float(x)
+                    if -180 <= float(x) <= 180
+                    else ValueError("Invalid longitude.")
+                )
+            },
+            "out_of_service": {"validator": lambda x: x.lower() in ["true", "false"]},
+            "mileage": {
+                "validator": lambda x: (
+                    float(x)
+                    if float(x) >= 0
+                    else ValueError("Mileage must be non-negative.")
+                )
+            },
+            "last_maintenance": {
+                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d")
+            },
+            "in_service_date": {
+                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d")
+            },
+        }
+
+        print("Available fields to update:")
+        for field in fields.keys():
+            print(f"- {field}")
+
+        field_choice = input("Enter field name to update: ").strip()
+        if field_choice not in fields:
+            print("[ERROR] Invalid field.")
+            return
+
+        field = fields[field_choice]
+        validator = field.get("validator")
+        pattern = field.get("pattern")
+        error_msg = field.get("error", "Invalid input.")
+
+        new_value = get_valid_input(
+            f"Enter new value for {field_choice}: ",
+            pattern=pattern,
+            error_msg=error_msg,
+            validator=validator,
+        )
+
+        # Convert boolean string to integer 0/1
+        if field_choice == "out_of_service":
+            new_value = 1 if new_value.lower() == "true" else 0
+
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"UPDATE scooters SET {field_choice} = ? WHERE id = ?",
+                (new_value, scooter_id),
+            )
+            conn.commit()
+            print(f"[SUCCESS] Scooter's {field_choice} updated.")
+
+    @staticmethod
+    def print_info(scooter_data: tuple):
+        print(
+            f"\nScooter ID: {scooter_data[0]}"
+            f"\nBrand: {scooter_data[1]}"
+            f"\nModel: {scooter_data[2]}"
+            f"\nSerial Number: {scooter_data[3]}"
+            f"\nTop Speed (km/h): {scooter_data[4]}"
+            f"\nBattery Capacity (Wh): {scooter_data[5]}"
+            f"\nState of Charge (%): {scooter_data[6]}"
+            f"\nTarget Range SoC (%): {scooter_data[7]} - {scooter_data[8]}"
+            f"\nLocation (lat, long): {scooter_data[9]}, {scooter_data[10]}"
+            f"\nOut of Service: {'Yes' if scooter_data[11] else 'No'}"
+            f"\nMileage (km): {scooter_data[12]}"
+            f"\nLast Maintenance Date: {scooter_data[13]}"
+            f"\nIn Service Date: {scooter_data[14]}"
+        )
+
+    @staticmethod
+    def search_scooter():
+        print("=== Search Scooter ===")
+        print("1. By ID")
+        print("2. By Brand or Model")
+        choice = input("Choose option: ").strip()
+
+        with get_connection() as conn:
+            cursor = conn.cursor()
+
+            if choice == "1":
+                scooter_id = input("Enter scooter ID: ").strip()
+                if not scooter_id.isdigit():
+                    print("[ERROR] Scooter ID must be a number.")
+                    return
+                cursor.execute("SELECT * FROM scooters WHERE id = ?", (scooter_id,))
+            elif choice == "2":
+                term = input("Enter brand or model name: ").strip()
+                cursor.execute(
+                    "SELECT * FROM scooters WHERE brand LIKE ? OR model LIKE ?",
+                    (f"%{term}%", f"%{term}%"),
+                )
+            else:
+                print("[ERROR] Invalid option.")
+                return
+
+            results = cursor.fetchall()
+            if results:
+                for scooter in results:
+                    Scooter.print_info(scooter)
+            else:
+                print("[INFO] No scooters found.")
 
 
-def search_scooter():
-    print("=== Search for Scooter ===")
-    print("1. search on Brand")
-    print("2. search on Model")
-    print("3. search on Serial Number")
-    print("4. search on ID")
-    search_choice = input("Select search option: ").strip()
-
-    if search_choice == "1":
-        brand = input("Enter scooter brand: ").strip()
-        filter_scooters("brand", brand)
-    elif search_choice == "2":
-        model = input("Enter scooter model: ").strip()
-        filter_scooters("model", model)
-    elif search_choice == "3":
-        serial_number = input("Enter scooter serial number: ").strip()
-        while not re.fullmatch(r"[A-Za-z0-9]{10,17}", serial_number):
-            serial_number = input(
-                "Please enter a correct serialnumber (10-17 alphanumeric characters): "
-            ).strip()
-        _search_scooter("serial_number", serial_number)
-    elif search_choice == "4":
-        scooter_id = input("Enter scooter ID: ").strip()
-        _search_scooter("id", scooter_id)
-    else:
-        print("Invalid search option.")
-
-
-def filter_scooters(column, value):
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM scooters WHERE {column}=?", (value,))
-        scooter = cursor.fetchall()
-
-        if scooter:
-            return scooter
-        else:
-            return None
-
-
-def _search_scooter(column, value) -> Scooter | None:
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM scooters WHERE {column}=?", (value,))
-        scooter = cursor.fetchone()
-
-        if scooter:
-            return scooter
-        else:
-            return None
-
-
-def printScooter(scooter: Scooter):
-    print(
-        f"Scooter found:"
-        f"\nID = {scooter[0]}"
-        f"\nBrand = {scooter[1]}"
-        f"\nModel = {scooter[2]}"
-        f"\nSerial Number = {scooter[3]}"
-        f"\nTop Speed = {scooter[4]} km/h"
-        f"\nBattery Capacity = {scooter[5]} Wh"
-        f"\nState of Charge = {scooter[6]}%"
-        f"\nTarget Range SoC = [{scooter[7]}%, {scooter[8]}%]"
-        f"\nLocation (lat,long)= ({scooter[9]}, {scooter[10]})"
-        f"\nOut of Service = {scooter[11]}"
-        f"\nMileage = {scooter[12]} km"
-        f"\nLast Maintenance Date = {scooter[13]}"
-        f"\nIn Service Date = {scooter[14]}"
-    )
-
-
-def get_all_scooters():
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM scooters")
-        scooters = cursor.fetchall()
-        return scooters
-
-
-def updateScooter():
+def get_valid_input(prompt, pattern=None, error_msg=None, validator=None):
     while True:
-        print("\n=== Update Scooter ===")
-        i = 0
-        scooters: list[Scooter] = get_all_scooters()
-        print("\nList of scooters with brand and model:")
-        for s in scooters:
-            print(f"{i}. : {s[1]} {s[2]}")
-            i += 1
+        value = input(prompt).strip()
+        if pattern and not re.fullmatch(pattern, value):
+            print(f"[ERROR] {error_msg}")
+            continue
+        if validator:
+            try:
+                return validator(value)
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                continue
+        return value
 
-        print("\n \n \n1. Choose Scooter")
-        print("2. Go back")
+
+def manage_scooter():
+    while True:
+        print("\n=== Manage Scooters ===")
+        print("1. Add Scooter")
+        print("2. Update Scooter")
+        print("3. Delete Scooter")
+        print("4. Search Scooter")
+        print("5. List All Scooters")
+        print("6. Exit")
+
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            scooter_id = input("Enter scooter ID: ").strip()
-            foundScooter = _search_scooter("id", scooter_id)
-            if foundScooter is None:
-                print("[ERROR] Scooter not found")
-                break
-            printScooter(foundScooter)
-            while True:
-                print("\n=== What would you like to update ===")
-                print("1. Brand")
-                print("2. Model")
-                print("3. Serial Number")
-                print("4. Top Speed")
-                print("5. Batery Capacity")
-                print("6. State of Charge")
-                print("7. Target Range SoC")
-                print("8. Location (lat,long)")
-                print("9. Out of Service")
-                print("10. Mileage")
-                print("11. Last Maintenance Date")
-                print("12. Service Date")
-                print("13. Done")
-
-                choice2 = input("Select an option: ").strip()
-                newBrand = foundScooter[1]
-                newModel = foundScooter[2]
-                newSerialNumber = foundScooter[3]
-                newTS = foundScooter[4]
-                newBC = foundScooter[5]
-                newSoC = foundScooter[6]
-                newLowPer = foundScooter[7]
-                newHighPer = foundScooter[8]
-                newLat = foundScooter[9]
-                newLong = foundScooter[10]
-                newOS = foundScooter[11]
-                newM = foundScooter[12]
-                newMD = foundScooter[13]
-                newISD = foundScooter[14]
-
-                match choice2:
-                    case "1":
-                        print("Update brand")
-                        newBrand = input("Enter new brand: ").strip()
-                    case "2":
-                        print("Update model")
-                        newModel = input("Enter new model: ").strip()
-                    case "3":
-                        print("Update serialnumber")
-                        newSerialNumber = input("Enter new serialnumber: ").strip()
-                    case "4":
-                        print("Update top speed")
-                        newTS = input("Enter new top speed: ").strip()
-                    case "5":
-                        print("Update battery capacity")
-                        newBC = input("Enter new battery capacity: ").strip()
-                    case "6":
-                        print("Update state of charge")
-                        newSoC = input("Enter new state of charge: ").strip()
-                    case "7":
-                        print("Update target range SoC")
-                        newLowPer = input("Enter new target range SoC (low)%: ").strip()
-                        newHighPer = input(
-                            "Enter new target range SoC (high)%: "
-                        ).strip()
-                    case "8":
-                        print("Update location")
-                        newLong = input("Enter new location (long): ").strip()
-                        newLat = input("Enter new location (lat): ").strip()
-                    case "9":
-                        print("Update out-of-service status")
-                        newOS = input("Enter new out-of-service status: ").strip()
-                    case "10":
-                        print("Update mileage")
-                        newM = input("Enter new mileage: ").strip()
-                    case "11":
-                        print("Update last maintenance date")
-                        newMD = input("Enter new last maintenance date: ").strip()
-                    case "12":
-                        print("Update In service date")
-                        newISD = input("Enter new in service date: ").strip()
-                    case "13":
-                        print("Finished updating.")
-                        break
-                    case _:
-                        print("[ERROR] Invalid choice.")
-                with get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        """
-                        UPDATE scooters
-                        SET brand=?, model=?, serial_number=?, top_speed=?, battery_capacity=?,
-                            soc=?, target_range_min=?, target_range_max=?, latitude=?, longitude=?,
-                            out_of_service=?, mileage=?, last_maintenance=?, in_service_date=?
-                        WHERE id=?
-                    """,
-                        (
-                            newBrand,
-                            newModel,
-                            newSerialNumber,
-                            newTS,
-                            newBC,
-                            newSoC,
-                            newLowPer,
-                            newHighPer,
-                            newLat,
-                            newLong,
-                            newOS,
-                            newM,
-                            newMD,
-                            newISD,
-                            foundScooter[0],
-                        ),
-                    )
-                    conn.commit()
+            # You can call Scooter.add_scooter() or handle input here
+            Scooter.add_scooter()
 
         elif choice == "2":
-            print("Going back to dashboard")
+            Scooter.update_scooter()
+
+        elif choice == "3":
+            Scooter.delete_scooter()
+
+        elif choice == "4":
+            Scooter.search_scooter()
+
+        elif choice == "5":
+            scooters = Scooter.get_all_scooters()
+            if scooters:
+                for s in scooters:
+                    Scooter.print_info(s)
+            else:
+                print("[INFO] No scooters found.")
+
+        elif choice == "6":
+            print("Exiting...")
             break
+
         else:
-            print("[ERROR] Invalid choice.")
+            print("[ERROR] Invalid choice. Please try again.")

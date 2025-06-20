@@ -2,7 +2,8 @@
 
 from auth.login import login
 from Models.user import User
-from Models.scooter import updateScooter
+from Models.scooter import Scooter, manage_scooter
+from Models.traveler import manage_traveller
 
 
 def start_app():
@@ -30,7 +31,7 @@ def serviceEngineer(user: User):
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            updateScooter()
+            Scooter.update_scooter()
             return
         elif choice == "2":
             print("Goodbye!")
@@ -80,9 +81,9 @@ def superAdmin(user: User):
         elif choice == "2":
             user.add_user()
         elif choice == "3":
-            pass
+            manage_traveller()
         elif choice == "4":
-            pass
+            manage_scooter()
         elif choice == "5":
             pass
         elif choice == "6":
