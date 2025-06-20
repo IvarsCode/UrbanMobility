@@ -106,6 +106,13 @@ class Scooter:
         conn.commit()
         print("[SUCCESS] Scooter added to database.")
 
+    def get_all_scooters():
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM scooters")
+            scooters = cursor.fetchall()
+            return scooters
+
     @staticmethod
     def delete_scooter():
         print("=== Delete Scooter ===")
