@@ -1,6 +1,7 @@
 from datetime import datetime
 import re
 from db.database import get_connection
+from ui.terminal import clear_terminal
 
 
 class Traveller:
@@ -237,6 +238,7 @@ def validate_date(date_str):
 
 def manage_traveller():
     while True:
+        clear_terminal()
         print("\n=== Manage Travellers ===")
         print("1. Add Traveller")
         print("2. Update Traveller")
@@ -317,16 +319,22 @@ def manage_traveller():
                 print(f"[ERROR] {e}")
 
         elif choice == "2":
+            clear_terminal()
             Traveller.update_traveller()
+            
 
         elif choice == "3":
+            clear_terminal()
             Traveller.delete_traveller()
 
         elif choice == "4":
+            clear_terminal()
             Traveller.search_traveller()
 
         elif choice == "5":
+            clear_terminal()
             print("Exiting...")
             break
         else:
+            clear_terminal()
             print("[ERROR] Invalid choice. Please try again.")

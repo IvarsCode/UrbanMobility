@@ -3,6 +3,7 @@ from datetime import datetime
 from db.database import get_connection
 from auth.password import input_password, verify_password
 from auth.passwordHash import hash_password
+from ui.terminal import clear_terminal
 
 class User:
     def __init__(
@@ -17,16 +18,16 @@ class User:
         self.role = role
 
     def add_user(self):
-        
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
         confirm_password = input_password("Confirm password: ").strip()
-
+        clear_terminal()
         if password != confirm_password:
             print("Passwords do not match.")
             return
         match self.role:
             case "super_administrator":
+                
                 print("=== Adding new user ===")
                 print("\nRole of the new user:")
                 print("1. service engineer")
@@ -43,9 +44,11 @@ class User:
                     print("invalid role selected.")
                     return
             case "system_administrator":
+                clear_terminal()
                 print("=== Adding new service engineer ===")
                 role = "service_engineer"
             case "service_engineer":
+                clear_terminal()
                 print("You are unauthorized to add a user")
                 return
         
@@ -94,6 +97,7 @@ class User:
     def display_users(self):
         
         try:
+            clear_terminal()
             print("=== User display ===")
             start = input("Enter starting index (0 for beginning): ").strip()
             if not start.isdigit():
@@ -146,10 +150,12 @@ class User:
                 print("Exiting...")
                 break
             else:
+                clear_terminal()
                 print("[ERROR] Invalid choice. Please try again.")
             
 
     def addServiceEngineer(self):
+        clear_terminal()
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
@@ -196,6 +202,7 @@ class User:
 
 
     def updateServiceEngineer(self):
+        clear_terminal()
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
         
@@ -231,7 +238,7 @@ class User:
                     return
 
                 user_id = user_id_row[0]
-
+                clear_terminal()
                 print("\n === Update Service Engineer ===")
                 print("1. Update Username")
                 print("2. Update First name")
@@ -243,6 +250,7 @@ class User:
                     new_userName = input("Enter new username: ").strip()
                     cursor.execute(
                         "UPDATE users SET username = ? WHERE id = ?", (new_userName, user_id))
+                    clear_terminal()
                     print(f"[SUCCES] User {new_userName} updated succesfully")
 
                 # Update profiles table
@@ -250,6 +258,7 @@ class User:
                     new_firstName = input("Enter new first name: ").strip()
                     cursor.execute(
                         "UPDATE profiles SET first_name = ? WHERE user_id = ?", (new_firstName, user_id))
+                    clear_terminal()
                     print(f"[SUCCES] User {username} updated succesfully")
 
                 # Update profiles table
@@ -257,6 +266,7 @@ class User:
                     new_lastName = input("Enter new last name: ").strip()
                     cursor.execute(
                         "UPDATE profiles SET last_name = ? WHERE user_id = ?", (new_lastName, user_id))
+                    clear_terminal()
                     print(f"[SUCCES] User {username} updated succesfully")
 
                 else:
@@ -316,6 +326,7 @@ class User:
                     print("User not found or already deleted.")
 
                 conn.commit()
+                clear_terminal()
                 print(f"[SUCCES] User {username} deleted succesfully")
         except sqlite3.Error as e:
             print("Database error:", e)
@@ -365,7 +376,7 @@ class User:
                 # Update password
                 cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
                 conn.commit()
-
+                clear_terminal()
                 print(f"[SUCCES] Password of user {username} changed successfully.")
 
         except sqlite3.Error as e:
