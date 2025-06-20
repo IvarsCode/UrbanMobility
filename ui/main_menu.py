@@ -2,6 +2,7 @@
 
 from auth.login import login
 
+
 def start_app():
     user = login()
     if not user:
@@ -17,11 +18,45 @@ def start_app():
         serviceEngineer()
         return
 
+
 def serviceEngineer():
-    pass #moet hetzelfde format worden als super admin
+    while True:
+        print("\n=== Service Engineer Dashboard ===")
+        print("1. Update Scooter")
+        print("2. Exit")
+
+        choice = input("Select an option: ").strip()
+
+        if choice == "1":
+            pass
+        elif choice == "2":
+            print("Goodbye!")
+            break
+        else:
+            print("[ERROR] Invalid choice.")
+
 
 def systemAdmin():
-    pass #moet hetzelfde format worden als super admin
+    while True:
+        print("\n=== System Admin Dashboard ===")
+        print("1. Manage Service Engineers")
+        print("2. Manage Travellers")
+        print("3. Manage Scooters")
+        print("4. Exit")
+
+        choice = input("Select an option: ").strip()
+
+        if choice == "1":
+            pass
+        elif choice == "2":
+            pass
+        elif choice == "3":
+            pass
+        elif choice == "4":
+            print("Goodbye!")
+            break
+        else:
+            print("[ERROR] Invalid choice.")
 
 
 def superAdmin():
@@ -55,23 +90,27 @@ def superAdmin():
         else:
             print("[ERROR] Invalid choice.")
 
+
 # Placeholder functions for each menu option
 def manage_system_admins():
     print("[TODO] Manage System Administrators - Feature coming soon.")
 
+
 def manage_service_engineers():
     print("[TODO] Manage Service Engineers - Feature coming soon.")
+
 
 def manage_travellers():
     print("[TODO] Manage Travellers - Feature coming soon.")
 
+
 def manage_scooters():
     print("[TODO] Manage Scooters - Feature coming soon.")
+
 
 def view_logs():
     print("[TODO] View Logs - Feature coming soon.")
 
+
 def backup_and_restore():
     print("[TODO] Backup & Restore - Feature coming soon.")
-
-
