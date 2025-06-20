@@ -2,23 +2,24 @@ from datetime import datetime
 import re
 from db.database import get_connection
 
+
 class Scooter:
     def __init__(
         self,
         brand: str,
         model: str,
-        serialNumber: str,              # 10 to 17 alphanumeric characters
-        topSpeed: int,                  # in km/h
-        batteryCapacity: int,           # in watt-hours (Wh)
-        SoC: float,                     # State of Charge in percentage
-        targetRangeSoC: list[float],    # [min, max] SoC in percentage
-        location: list[float],          # [latitude, longitude]
-        outOfService: bool,             # True/False
-        mileage: float,                 # in kilometers
-        lastMaintenanceDate: str        # ISO 8601 format: YYYY-MM-DD
+        serialNumber: str,  # 10 to 17 alphanumeric characters
+        topSpeed: int,  # in km/h
+        batteryCapacity: int,  # in watt-hours (Wh)
+        SoC: float,  # State of Charge in percentage
+        targetRangeSoC: list[float],  # [min, max] SoC in percentage
+        location: list[float],  # [latitude, longitude]
+        outOfService: bool,  # True/False
+        mileage: float,  # in kilometers
+        lastMaintenanceDate: str,  # ISO 8601 format: YYYY-MM-DD
     ):
         # Validate serial number format
-        if not re.fullmatch(r'[A-Za-z0-9]{10,17}', serialNumber):
+        if not re.fullmatch(r"[A-Za-z0-9]{10,17}", serialNumber):
             raise ValueError("Serial number must be 10 to 17 alphanumeric characters.")
 
         # Validate location (Rotterdam GPS coordinates range)
@@ -28,19 +29,25 @@ class Scooter:
 
         # Validate location decimal precision
         if round(lat, 5) != lat or round(lon, 5) != lon:
-            raise ValueError("Latitude and longitude must be specified to 5 decimal places.")
+            raise ValueError(
+                "Latitude and longitude must be specified to 5 decimal places."
+            )
 
         # Validate SoC and target SoC range
         if not (0 <= SoC <= 100):
             raise ValueError("State of Charge (SoC) must be between 0 and 100.")
         if not (0 <= targetRangeSoC[0] <= targetRangeSoC[1] <= 100):
-            raise ValueError("Target range SoC must be within 0 to 100 and in increasing order.")
+            raise ValueError(
+                "Target range SoC must be within 0 to 100 and in increasing order."
+            )
 
         # Validate last maintenance date
         try:
             datetime.strptime(lastMaintenanceDate, "%Y-%m-%d")
         except ValueError:
-            raise ValueError("Last maintenance date must be in ISO 8601 format: YYYY-MM-DD")
+            raise ValueError(
+                "Last maintenance date must be in ISO 8601 format: YYYY-MM-DD"
+            )
 
         # Set attributes
         self.brand = brand
@@ -60,7 +67,6 @@ class Scooter:
 
     def __repr__(self):
         return f"<Scooter {self.serialNumber} - {self.brand} {self.model}>"
-    
 
     def search_scooter(self):
         print("=== Search for Scooter ===")
@@ -85,29 +91,41 @@ class Scooter:
         else:
             print("Invalid search option.")
 
-    def _search_scooter(self, column, value):
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT * FROM scooters WHERE {column}=?",
-                (value,)
-            )
-            scooter = cursor.fetchone()
 
-            if scooter:
-                print(f"Scooter found:"
-                    f"\nID = {scooter[0]}"
-                    f"\nBrand = {scooter[1]}"
-                    f"\nModel = {scooter[2]}"
-                    f"\nSerial Number = {scooter[3]}"
-                    f"\nTop Speed = {scooter[4]} km/h"
-                    f"\nBattery Capacity = {scooter[5]} Wh"
-                    f"\nState of Charge = {scooter[6]}%"
-                    f"\nTarget Range SoC = [{scooter[7]}%, {scooter[8]}%]"
-                    f"\nLocation (lat,long)= ({scooter[9]}, {scooter[10]})"
-                    f"\nOut of Service = {scooter[11]}"
-                    f"\nMileage = {scooter[12]} km"
-                    f"\nLast Maintenance Date = {scooter[13]}"
-                    f"\nIn Service Date = {scooter[14]}")
-            else:
-                print("Scooter not found.")
+def _search_scooter(column, value) -> Scooter | None:
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT * FROM scooters WHERE {column}=?", (value,))
+        scooter = cursor.fetchone()
+
+        if scooter:
+            return scooter
+        else:
+            return None
+
+
+def printScooter(scooter: Scooter):
+    print(
+        f"Scooter found:"
+        f"\nID = {scooter[0]}"
+        f"\nBrand = {scooter[1]}"
+        f"\nModel = {scooter[2]}"
+        f"\nSerial Number = {scooter[3]}"
+        f"\nTop Speed = {scooter[4]} km/h"
+        f"\nBattery Capacity = {scooter[5]} Wh"
+        f"\nState of Charge = {scooter[6]}%"
+        f"\nTarget Range SoC = [{scooter[7]}%, {scooter[8]}%]"
+        f"\nLocation (lat,long)= ({scooter[9]}, {scooter[10]})"
+        f"\nOut of Service = {scooter[11]}"
+        f"\nMileage = {scooter[12]} km"
+        f"\nLast Maintenance Date = {scooter[13]}"
+        f"\nIn Service Date = {scooter[14]}"
+    )
+
+
+def get_all_scooters():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT * FROM scooters")
+        scooters = cursor.fetchall()
+        return scooters
