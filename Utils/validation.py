@@ -16,7 +16,7 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 
-def validate_dutch_phone(phone):
+def validate_phone(phone):
 
     pattern = r"^\+31-6-\d{8}$"
     return re.match(pattern, phone) is not None
