@@ -2,8 +2,8 @@
 
 from auth.login import login
 from Models.user import User
-from Models.scooter import Scooter, manage_scooter
-from Models.traveler import manage_traveller
+from Models.scooter import updateScooter
+import re
 
 
 def start_app():
@@ -31,7 +31,7 @@ def serviceEngineer(user: User):
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            Scooter.update_scooter()
+            updateScooter()
             return
         elif choice == "2":
             print("Goodbye!")
@@ -43,20 +43,23 @@ def serviceEngineer(user: User):
 def systemAdmin(user: User):
     while True:
         print("\n=== System Admin Dashboard ===")
-        print("1. Manage Service Engineers")
-        print("2. Manage Travellers")
-        print("3. Manage Scooters")
-        print("4. Exit")
+        print("1. View Users")
+        print("2. Manage Service Engineers")
+        print("3. Manage Travellers")
+        print("4. Manage Scooters")
+        print("5. Exit")
 
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            pass
+            user.display_users()
         elif choice == "2":
-            pass
+            user.manageServiceEngineers()
         elif choice == "3":
-            pass
+            user.manageTravellers()
         elif choice == "4":
+            user.manageScooters()
+        elif choice == "5":
             print("Goodbye!")
             break
         else:
@@ -81,9 +84,9 @@ def superAdmin(user: User):
         elif choice == "2":
             user.add_user()
         elif choice == "3":
-            manage_traveller()
+            pass
         elif choice == "4":
-            manage_scooter()
+            pass
         elif choice == "5":
             pass
         elif choice == "6":
