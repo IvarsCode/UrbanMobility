@@ -3,7 +3,6 @@
 from auth.login import login
 from Models.user import User
 from Models.scooter import updateScooter
-import re
 
 
 def start_app():
