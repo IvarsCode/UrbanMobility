@@ -2,7 +2,7 @@
 
 from auth.login import login
 from Models.user import User
-from Models.scooter import Scooter, _search_scooter, get_all_scooters
+from Models.scooter import updateScooter
 import re
 
 
@@ -35,33 +35,6 @@ def serviceEngineer(user: User):
             return
         elif choice == "2":
             print("Goodbye!")
-            break
-        else:
-            print("[ERROR] Invalid choice.")
-
-
-def updateScooter():
-    while True:
-        print("\n=== Update Scooter ===")
-        i = 0
-        scooters: list[Scooter] = get_all_scooters()
-        for s in scooters:
-            i += 1
-            print(f"{i}. : {s[3]}")
-
-        print("\n \n \n1. Choose Scooter")
-        print("2. Go back")
-        choice = input("Select an option: ").strip()
-
-        if choice == "1":
-            scooterSerial = input("Enter the serialnumber of the scooter").strip()
-            while not re.fullmatch(r"[A-Za-z0-9]{10,17}", scooterSerial):
-                scooterSerial = input(
-                    "Please enter a correct serialnumber (10-17 alphanumeric characters)"
-                ).strip()
-
-        elif choice == "2":
-            print("Going back to dashboard")
             break
         else:
             print("[ERROR] Invalid choice.")
