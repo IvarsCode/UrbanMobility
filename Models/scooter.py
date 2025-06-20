@@ -129,3 +129,39 @@ def get_all_scooters():
         cursor.execute(f"SELECT * FROM scooters")
         scooters = cursor.fetchall()
         return scooters
+
+
+def updateScooter():
+    while True:
+        print("\n=== Update Scooter ===")
+        i = 0
+        scooters: list[Scooter] = get_all_scooters()
+        print("\nList of scooters and serialnumbers:")
+        for s in scooters:
+            i += 1
+            print(f"{i}. : {s[3]}")
+
+        print("\n \n \n1. Choose Scooter")
+        print("2. Go back")
+        choice = input("Select an option: ").strip()
+
+        if choice == "1":
+            scooterSerial = input("Enter the serialnumber of the scooter: ").strip()
+            while not re.fullmatch(r"[A-Za-z0-9]{10,17}", scooterSerial):
+                scooterSerial = input(
+                    "Please enter a correct serialnumber (10-17 alphanumeric characters): "
+                ).strip()
+
+            foundScooter = _search_scooter("serial_number", scooterSerial)
+            if foundScooter is None:
+                print("[ERROR] Scooter not found")
+                break
+            printScooter(foundScooter)
+            while True:
+                print
+
+        elif choice == "2":
+            print("Going back to dashboard")
+            break
+        else:
+            print("[ERROR] Invalid choice.")
