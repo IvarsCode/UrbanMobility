@@ -43,20 +43,23 @@ def serviceEngineer(user: User):
 def systemAdmin(user: User):
     while True:
         print("\n=== System Admin Dashboard ===")
-        print("1. Manage Service Engineers")
-        print("2. Manage Travellers")
-        print("3. Manage Scooters")
-        print("4. Exit")
+        print("1. View Users")
+        print("2. Manage Service Engineers")
+        print("3. Manage Travellers")
+        print("4. Manage Scooters")
+        print("5. Exit")
 
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            pass
+            user.display_users()
         elif choice == "2":
-            pass
+            user.manageServiceEngineers()
         elif choice == "3":
-            pass
+            user.manageTravellers()
         elif choice == "4":
+            user.manageScooters()
+        elif choice == "5":
             print("Goodbye!")
             break
         else:
