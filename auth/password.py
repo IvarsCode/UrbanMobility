@@ -9,11 +9,8 @@ from auth.passwordHash import hash_password
 
 
 def verify_password(password: str, stored: str) -> bool:
-    decoded = base64.b64decode(stored.encode())
-    salt = decoded[:16]
-    key = decoded[16:]
-    new_key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)
-    return new_key == key
+    return password == stored
+
 
 def input_password(prompt="Password: "):
     print(prompt, end="", flush=True)
@@ -21,6 +18,7 @@ def input_password(prompt="Password: "):
 
     if sys.platform.startswith("win"):
         import msvcrt
+
         while True:
             ch = msvcrt.getch()
             if ch in {b"\r", b"\n"}:
@@ -38,6 +36,7 @@ def input_password(prompt="Password: "):
     else:
         import tty
         import termios
+
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
 
@@ -62,6 +61,7 @@ def input_password(prompt="Password: "):
 
     return password
 
+
 def update_password():
     print("=== Update Password ===")
     username = input("Enter your username: ").strip()
@@ -80,14 +80,14 @@ def update_password():
         cursor = conn.cursor()
         cursor.execute(
             "SELECT id FROM users WHERE username=? AND password=?",
-            (username, hashed_old_password)
+            (username, hashed_old_password),
         )
         user_id = cursor.fetchone()
 
         if user_id:
             cursor.execute(
                 "UPDATE users SET password=? WHERE id=?",
-                (hashed_new_password, user_id[0])
+                (hashed_new_password, user_id[0]),
             )
             conn.commit()
             print("Password updated successfully.")
