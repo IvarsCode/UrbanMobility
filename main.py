@@ -16,13 +16,13 @@ def main():
         user = controller.login()
 
     # Proceed to the menu based on role
-    if user["role"] == "service_engineer":
+    if user["role"] == "ServiceEngineer":
         print("Loading Service Engineer Menu...")
         # service_engineer_menu(user)
-    elif user["role"] == "system_admin":
+    elif user["role"] == "SystemAdministrator":
         print("Loading System Administrator Menu...")
         # system_admin_menu(user)
-    elif user["role"] == "super_admin":
+    elif user["role"] == "SuperAdministrator":
         print("Loading Super Administrator Menu...")
         # super_admin_menu(user)
 
