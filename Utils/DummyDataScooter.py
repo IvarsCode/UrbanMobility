@@ -56,4 +56,4 @@ def insert_dummy_scooters(n=20):
     print(f"{n} dummy scooter records inserted.")
 
 # Run to run
-insert_dummy_scooters(50) 
+#insert_dummy_scooters(100) 
