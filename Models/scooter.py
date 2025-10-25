@@ -1,6 +1,9 @@
 from datetime import datetime
 import re
 from db.database import get_connection
+from Utils.encryption import Encryptor
+
+encryptor = Encryptor()
 
 
 class Scooter:
@@ -17,6 +20,7 @@ class Scooter:
         outOfService: bool,
         mileage: float,  # in kilometers
         lastMaintenanceDate: str,  # YYYY-MM-DD
+        inServiceDate: str,  # YYYY-MM-DD
     ):
         # === VALIDATION ===
         if not brand or len(brand) < 2:
@@ -63,6 +67,11 @@ class Scooter:
         except ValueError:
             raise ValueError("Last maintenance date must be in YYYY-MM-DD format.")
 
+        try:
+            datetime.strptime(inServiceDate, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("In service date date must be in YYYY-MM-DD format.")
+
         self.brand = brand
         self.model = model
         self.serialNumber = serialNumber
@@ -74,6 +83,7 @@ class Scooter:
         self.outOfService = outOfService
         self.mileage = mileage
         self.lastMaintenanceDate = lastMaintenanceDate
+        self.inServiceDate = inServiceDate
 
     def add_to_db(self):
         with get_connection() as conn:
@@ -84,13 +94,13 @@ class Scooter:
                 brand, model, serial_number, top_speed, battery_capacity,
                 soc, target_range_min, target_range_max,
                 latitude, longitude, out_of_service,
-                mileage, last_maintenance
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                mileage, last_maintenance, in_service_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
-                    self.brand,
-                    self.model,
-                    self.serialNumber,
+                    encryptor.encrypt_text(self.brand).decode(),
+                    encryptor.encrypt_text(self.model).decode(),
+                    encryptor.encrypt_text(self.serialNumber).decode(),
                     self.topSpeed,
                     self.batteryCapacity,
                     self.SoC,
@@ -100,7 +110,8 @@ class Scooter:
                     self.location[1],
                     int(self.outOfService),  # Store boolean as 0/1
                     self.mileage,
-                    self.lastMaintenanceDate,
+                    encryptor.encrypt_text(self.lastMaintenanceDate).decode(),
+                    encryptor.encrypt_text(self.inServiceDate).decode(),
                 ),
             )
         conn.commit()
@@ -112,6 +123,44 @@ class Scooter:
             cursor.execute(f"SELECT * FROM scooters")
             scooters = cursor.fetchall()
             return scooters
+
+    @staticmethod
+    def add_scooter():
+        print("=== Add New Scooter ===")
+
+        brand = input("Enter brand: ").strip()
+        model = input("Enter model: ").strip()
+        serial_number = input("Enter serial number (10–17 chars): ").strip()
+        top_speed = float(input("Enter top speed (km/h): ").strip())
+        battery_capacity = int(input("Enter battery capacity (Wh): ").strip())
+        soc = float(input("Enter current state of charge (%): ").strip())
+        target_range_min = float(input("Enter target range minimum SoC (%): ").strip())
+        target_range_max = float(input("Enter target range maximum SoC (%): ").strip())
+        latitude = float(input("Enter latitude: ").strip())
+        longitude = float(input("Enter longitude: ").strip())
+        out_of_service = (
+            input("Is scooter out of service? (yes/no): ").strip().lower() == "yes"
+        )
+        mileage = float(input("Enter mileage (km): ").strip())
+        last_maintenance = input("Enter last maintenance date (YYYY-MM-DD): ").strip()
+        in_service_date = input("Enter in service date (YYYY-MM-DD): ").strip()
+
+        scooter = Scooter(
+            brand=brand,
+            model=model,
+            serialNumber=serial_number,
+            topSpeed=top_speed,
+            batteryCapacity=battery_capacity,
+            SoC=soc,
+            targetRangeSoC=[target_range_min, target_range_max],
+            location=[latitude, longitude],
+            outOfService=out_of_service,
+            mileage=mileage,
+            lastMaintenanceDate=last_maintenance,
+            inServiceDate=in_service_date,
+        )
+
+        scooter.add_to_db()
 
     @staticmethod
     def delete_scooter():
@@ -133,14 +182,17 @@ class Scooter:
             "brand": {
                 "pattern": r".{2,}",
                 "error": "Brand must be at least 2 characters.",
+                "encrypted": True,
             },
             "model": {
                 "pattern": r".{1,}",
                 "error": "Model must be at least 1 character.",
+                "encrypted": True,
             },
             "serial_number": {
                 "pattern": r"[A-Z0-9]{10,17}",
                 "error": "Serial number must be 10–17 uppercase alphanumeric characters.",
+                "encrypted": True,
             },
             "top_speed": {
                 "validator": lambda x: (
@@ -192,10 +244,12 @@ class Scooter:
                 )
             },
             "last_maintenance": {
-                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d")
+                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d"),
+                "encrypted": True,
             },
             "in_service_date": {
-                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d")
+                "validator": lambda x: datetime.strptime(x, "%Y-%m-%d"),
+                "encrypted": True,
             },
         }
 
@@ -220,9 +274,11 @@ class Scooter:
             validator=validator,
         )
 
-        # Convert boolean string to integer 0/1
         if field_choice == "out_of_service":
             new_value = 1 if new_value.lower() == "true" else 0
+
+        if field.get("encrypted"):
+            new_value = encryptor.encrypt_text(str(new_value)).decode()
 
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -235,20 +291,37 @@ class Scooter:
 
     @staticmethod
     def print_info(scooter_data: tuple):
+        encrypted_indices = [
+            1,
+            2,
+            3,
+            13,
+            14,
+        ]  # brand, model, serial_number, last_maintenance, in_service_date
+        decrypted_data = list(scooter_data)
+
+        for i in encrypted_indices:
+            value = scooter_data[i]
+            if value is not None:
+                try:
+                    decrypted_data[i] = encryptor.decrypt_text(value.encode())
+                except Exception:
+                    decrypted_data[i] = value
+
         print(
-            f"\nScooter ID: {scooter_data[0]}"
-            f"\nBrand: {scooter_data[1]}"
-            f"\nModel: {scooter_data[2]}"
-            f"\nSerial Number: {scooter_data[3]}"
-            f"\nTop Speed (km/h): {scooter_data[4]}"
-            f"\nBattery Capacity (Wh): {scooter_data[5]}"
-            f"\nState of Charge (%): {scooter_data[6]}"
-            f"\nTarget Range SoC (%): {scooter_data[7]} - {scooter_data[8]}"
-            f"\nLocation (lat, long): {scooter_data[9]}, {scooter_data[10]}"
-            f"\nOut of Service: {'Yes' if scooter_data[11] else 'No'}"
-            f"\nMileage (km): {scooter_data[12]}"
-            f"\nLast Maintenance Date: {scooter_data[13]}"
-            f"\nIn Service Date: {scooter_data[14]}"
+            f"\nScooter ID: {decrypted_data[0]}"
+            f"\nBrand: {decrypted_data[1]}"
+            f"\nModel: {decrypted_data[2]}"
+            f"\nSerial Number: {decrypted_data[3]}"
+            f"\nTop Speed (km/h): {decrypted_data[4]}"
+            f"\nBattery Capacity (Wh): {decrypted_data[5]}"
+            f"\nState of Charge (%): {decrypted_data[6]}"
+            f"\nTarget Range SoC (%): {decrypted_data[7]} - {decrypted_data[8]}"
+            f"\nLocation (lat, long): {decrypted_data[9]}, {decrypted_data[10]}"
+            f"\nOut of Service: {'Yes' if decrypted_data[11] else 'No'}"
+            f"\nMileage (km): {decrypted_data[12]}"
+            f"\nLast Maintenance Date: {decrypted_data[13]}"
+            f"\nIn Service Date: {decrypted_data[14]}"
         )
 
     @staticmethod
@@ -267,17 +340,32 @@ class Scooter:
                     print("[ERROR] Scooter ID must be a number.")
                     return
                 cursor.execute("SELECT * FROM scooters WHERE id = ?", (scooter_id,))
+                results = cursor.fetchall()
+
             elif choice == "2":
-                term = input("Enter brand or model name: ").strip()
-                cursor.execute(
-                    "SELECT * FROM scooters WHERE brand LIKE ? OR model LIKE ?",
-                    (f"%{term}%", f"%{term}%"),
-                )
+                term = input("Enter brand or model name: ").strip().lower()
+
+                # Fetch all scooters and decrypt in Python
+                cursor.execute("SELECT * FROM scooters")
+                all_scooters = cursor.fetchall()
+                results = []
+
+                for scooter in all_scooters:
+                    try:
+                        brand = encryptor.decrypt_text(scooter[1].encode()).lower()
+                        model = encryptor.decrypt_text(scooter[2].encode()).lower()
+                    except Exception:
+                        # fallback for unencrypted data
+                        brand = scooter[1].lower() if scooter[1] else ""
+                        model = scooter[2].lower() if scooter[2] else ""
+
+                    if term in brand or term in model:
+                        results.append(scooter)
+
             else:
                 print("[ERROR] Invalid option.")
                 return
 
-            results = cursor.fetchall()
             if results:
                 for scooter in results:
                     Scooter.print_info(scooter)
@@ -313,7 +401,6 @@ def manage_scooter():
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            # You can call Scooter.add_scooter() or handle input here
             Scooter.add_scooter()
 
         elif choice == "2":
