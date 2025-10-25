@@ -4,14 +4,13 @@ from db.database import get_connection
 from auth.password import input_password, verify_password
 from auth.passwordHash import hash_password
 from ui.terminal import clear_terminal
+from Utils.encryption import Encryptor
+
+encryptor = Encryptor()
+
 
 class User:
-    def __init__(
-        self, id: int, 
-        userName: str, 
-        passwordHash: str, 
-        role: str
-        ):
+    def __init__(self, id: int, userName: str, passwordHash: str, role: str):
         self.id = id
         self.userName = userName
         self.passwordHash = passwordHash
@@ -27,17 +26,14 @@ class User:
             return
         match self.role:
             case "super_administrator":
-                
+
                 print("=== Adding new user ===")
                 print("\nRole of the new user:")
                 print("1. service engineer")
                 print("2. system administrator")
                 role_choice = input("Enter number (1 or 2): ").strip()
 
-                role_map = {
-                    "1": "service_engineer",
-                    "2": "system_administrator"
-                }
+                role_map = {"1": "service_engineer", "2": "system_administrator"}
                 role = role_map.get(role_choice)
 
                 if not role:
@@ -51,10 +47,10 @@ class User:
                 clear_terminal()
                 print("You are unauthorized to add a user")
                 return
-        
+
         first_name = input("Enter first name: ").strip()
         last_name = input("Enter last name: ").strip()
-        
+
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
@@ -67,12 +63,15 @@ class User:
                 hashed_password = hash_password(password)
 
                 # Insert into users table
-                cursor.execute('''
+                cursor.execute(
+                    """
                     INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
-                ''', (username, hashed_password, role))
+                """,
+                    (username, hashed_password, role),
+                )
 
                 # get userId
-                cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 user_id_row = cursor.fetchone()
                 if user_id_row is None:
                     print("User not found after insert — unexpected.")
@@ -82,20 +81,22 @@ class User:
                 reg_date = datetime.now().strftime("%Y-%m-%d")
 
                 # Insert into profiles table
-                cursor.execute('''
+                cursor.execute(
+                    """
                     INSERT INTO profiles (user_id, first_name, last_name, registration_date)
                     VALUES (?, ?, ?, ?)
-                ''', (user_id, first_name, last_name, reg_date))
+                """,
+                    (user_id, first_name, last_name, reg_date),
+                )
 
                 conn.commit()
                 print(f"\nUser '{username}' added successfully with role '{role}'.\n")
 
         except sqlite3.Error as e:
             print("Database error:", e)
-        
 
     def display_users(self):
-        
+
         try:
             clear_terminal()
             print("=== User display ===")
@@ -110,8 +111,7 @@ class User:
                 cursor = conn.cursor()
 
                 cursor.execute(
-                    "SELECT username, role FROM users LIMIT 100 OFFSET ?",
-                    (offset,)
+                    "SELECT username, role FROM users LIMIT 100 OFFSET ?", (offset,)
                 )
                 users = cursor.fetchall()
 
@@ -119,7 +119,9 @@ class User:
                     print("\nNo users found from this starting point.")
                     return
 
-                print(f"\n=== Users List (From {offset} to {offset + len(users) - 1}) ===")
+                print(
+                    f"\n=== Users List (From {offset} to {offset + len(users) - 1}) ==="
+                )
                 for username, role in users:
                     print(f"Username: {username} | Role: {role}")
 
@@ -127,7 +129,7 @@ class User:
             print("Error fetching users:", e)
 
     def ManageSystemAdministrators(self):
-        
+
         while True:
             print("=== Manage System Administrators ===")
             print("1. Add System Administrator")
@@ -157,9 +159,8 @@ class User:
                 clear_terminal()
                 print("[ERROR] Invalid choice. Please try again.")
 
-    
     def manageServiceEngineers(self):
-        
+
         while True:
             print("=== Manage Service Engineers ===")
             print("1. Add Service Engineer")
@@ -184,12 +185,11 @@ class User:
             else:
                 clear_terminal()
                 print("[ERROR] Invalid choice. Please try again.")
-            
 
     def addServiceEngineer(self):
         clear_terminal()
-        
-        if self.role !="super_administrator" or self.role != "system_administrator":
+
+        if self.role != "super_administrator" or self.role != "system_administrator":
             print("You are unauthorized to add a user")
             return
 
@@ -198,7 +198,7 @@ class User:
 
         first_name = input("Enter first name: ").strip()
         last_name = input("Enter last name: ").strip()
-           
+
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
@@ -211,12 +211,15 @@ class User:
                 hashed_password = hash_password(password)
 
                 # Insert into users table
-                cursor.execute('''
+                cursor.execute(
+                    """
                     INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
-                ''', (username, hashed_password, "service_engineer"))
-                
+                """,
+                    (username, hashed_password, "service_engineer"),
+                )
+
                 # get userId
-                cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 user_id_row = cursor.fetchone()
                 if user_id_row is None:
                     print("User not found after insert — unexpected.")
@@ -226,10 +229,13 @@ class User:
                 reg_date = datetime.now().strftime("%Y-%m-%d")
 
                 # Insert into profiles table
-                cursor.execute('''
+                cursor.execute(
+                    """
                     INSERT INTO profiles (user_id, first_name, last_name, registration_date)
                     VALUES (?, ?, ?, ?)
-                ''', (user_id, first_name, last_name, reg_date))
+                """,
+                    (user_id, first_name, last_name, reg_date),
+                )
 
                 conn.commit()
                 print(f"[SUCCES] user: {username} succesfully added")
@@ -237,12 +243,11 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-
     def updateServiceEngineer(self):
         clear_terminal()
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
-        
+
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
@@ -254,7 +259,9 @@ class User:
 
                 # test if passwords match
                 hashed_password = hash_password(password)
-                cursor.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+                cursor.execute(
+                    "SELECT password_hash FROM users WHERE username = ?", (username,)
+                )
                 stored_password_row = cursor.fetchone()
 
                 if not stored_password_row:
@@ -268,7 +275,7 @@ class User:
                     return
 
                 # get userId
-                cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 user_id_row = cursor.fetchone()
                 if user_id_row is None:
                     print("User not found after insert — unexpected.")
@@ -286,7 +293,9 @@ class User:
                 if choice == "1":
                     new_userName = input("Enter new username: ").strip()
                     cursor.execute(
-                        "UPDATE users SET username = ? WHERE id = ?", (new_userName, user_id))
+                        "UPDATE users SET username = ? WHERE id = ?",
+                        (new_userName, user_id),
+                    )
                     clear_terminal()
                     print(f"[SUCCES] User {new_userName} updated succesfully")
 
@@ -294,7 +303,9 @@ class User:
                 elif choice == "2":
                     new_firstName = input("Enter new first name: ").strip()
                     cursor.execute(
-                        "UPDATE profiles SET first_name = ? WHERE user_id = ?", (new_firstName, user_id))
+                        "UPDATE profiles SET first_name = ? WHERE user_id = ?",
+                        (new_firstName, user_id),
+                    )
                     clear_terminal()
                     print(f"[SUCCES] User {username} updated succesfully")
 
@@ -302,7 +313,9 @@ class User:
                 elif choice == "3":
                     new_lastName = input("Enter new last name: ").strip()
                     cursor.execute(
-                        "UPDATE profiles SET last_name = ? WHERE user_id = ?", (new_lastName, user_id))
+                        "UPDATE profiles SET last_name = ? WHERE user_id = ?",
+                        (new_lastName, user_id),
+                    )
                     clear_terminal()
                     print(f"[SUCCES] User {username} updated succesfully")
 
@@ -311,7 +324,6 @@ class User:
                     return
 
                 conn.commit()
-                
 
         except sqlite3.Error as e:
             print("Database error:", e)
@@ -319,7 +331,7 @@ class User:
     def deleteServiceEngineer(self):
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
-        
+
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
@@ -333,7 +345,9 @@ class User:
 
                 # test if passwords match
                 hashed_password = hash_password(password)
-                cursor.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+                cursor.execute(
+                    "SELECT password_hash FROM users WHERE username = ?", (username,)
+                )
                 stored_password_row = cursor.fetchone()
                 if not stored_password_row:
                     print("Could not retrieve password.")
@@ -344,7 +358,7 @@ class User:
                     return
 
                 # get userId
-                cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 user_id_row = cursor.fetchone()
                 if user_id_row is None:
                     print("User not found — unexpected.")
@@ -368,7 +382,6 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-
     def changePasswordSE(self):
         print("=== Change Service Engineer Password ===")
         username = input("Enter username: ").strip()
@@ -389,7 +402,9 @@ class User:
 
                 # Get stored hash and verify
                 hashed_password = hash_password(current_password)
-                cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+                cursor.execute(
+                    "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+                )
                 stored_password_row = cursor.fetchone()
                 if not stored_password_row:
                     print("Could not retrieve password.")
@@ -411,13 +426,13 @@ class User:
                 new_hash = hash_password(new_password)
 
                 # Update password
-                cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+                cursor.execute(
+                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    (new_hash, user_id),
+                )
                 conn.commit()
                 clear_terminal()
                 print(f"[SUCCES] Password of user {username} changed successfully.")
 
         except sqlite3.Error as e:
             print("Database error:", e)
-
-
-        
