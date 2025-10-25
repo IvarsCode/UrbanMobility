@@ -98,8 +98,15 @@ def superAdmin(user: User):
         elif choice == "4":
             manage_scooter()
         elif choice == "5":
-            print("=== Logs ===")
-            logger.read_logs()
+            logs = logger.read_logs()
+            if not logs:
+                print("No logs found.")
+            else:
+                for log in logs:
+                    timestamp, username, description, extra, suspicious, status = log
+                    print(
+                        f"[{timestamp}] {username} | {description} | {extra} | Suspicious: {suspicious} | {status}"
+                    )
         elif choice == "6":
             pass
         elif choice == "7":

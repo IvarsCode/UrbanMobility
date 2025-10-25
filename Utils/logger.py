@@ -1,13 +1,13 @@
 import os
 from datetime import datetime
-from Utils.encryption import EncryptionHandler
+from Utils.encryption import Encryptor
 
 LOG_FILE = "data/logs.enc"
 
 
 class Logger:
-    def __init__(self, encryptor: EncryptionHandler = None):
-        self.encryptor = encryptor or EncryptionHandler()
+    def __init__(self, encryptor: Encryptor = None):
+        self.encryptor = encryptor or Encryptor()
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
     def log(self, username, description, extra="", suspicious=False):
@@ -18,7 +18,7 @@ class Logger:
             f"{'Yes' if suspicious else 'No'}|Unread"
         )
 
-        encrypted = self.encryptor.encrypt(entry)
+        encrypted = self.encryptor.encrypt_text(entry)
         with open(LOG_FILE, "ab") as f:
             f.write(encrypted + b"\n")
 
@@ -33,7 +33,7 @@ class Logger:
                 if not line:
                     continue
                 try:
-                    decrypted = self.encryptor.decrypt(line)
+                    decrypted = self.encryptor.decrypt_text(line)
                     parts = decrypted.split("|")
                     if len(parts) < 6:
                         continue
@@ -55,10 +55,10 @@ class Logger:
                 if not line:
                     continue
                 try:
-                    decrypted = self.encryptor.decrypt(line)
+                    decrypted = self.encryptor.decrypt_text(line)
                     if "Yes|Unread" in decrypted:
                         decrypted = decrypted.replace("Yes|Unread", "Yes|Read")
-                    encrypted = self.encryptor.encrypt(decrypted)
+                    encrypted = self.encryptor.encrypt_text(decrypted)
                     updated_lines.append(encrypted)
                 except Exception:
                     updated_lines.append(line)
