@@ -2,21 +2,28 @@ import sqlite3
 import random
 from db.database import get_connection
 from datetime import datetime, timedelta
+from Utils.encryption import Encryptor
+
+encryptor = Encryptor()
+
 
 # Connect
 with get_connection() as conn:
     cursor = conn.cursor()
 
+
 # Generate a random serial number (10–17 alphanumeric)
 def generate_serial():
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    return ''.join(random.choices(chars, k=random.randint(10, 17)))
+    return "".join(random.choices(chars, k=random.randint(10, 17)))
+
 
 # Generate a random date within a range
 def random_date(start_days_ago, end_days_ago):
     days_ago = random.randint(start_days_ago, end_days_ago)
     date = datetime.now() - timedelta(days=days_ago)
-    return date.strftime('%Y-%m-%d')
+    return date.strftime("%Y-%m-%d")
+
 
 # Generate a single scooter record
 def generate_scooter():
@@ -36,24 +43,40 @@ def generate_scooter():
     in_service_date = random_date(180, 1000)
 
     return (
-        brand, model, serial_number, top_speed, battery_capacity, soc,
-        target_range_min, target_range_max, latitude, longitude,
-        out_of_service, mileage, last_maintenance, in_service_date
+        encryptor.encrypt_text(brand).decode(),
+        encryptor.encrypt_text(model).decode(),
+        encryptor.encrypt_text(serial_number).decode(),
+        top_speed,
+        battery_capacity,
+        soc,
+        target_range_min,
+        target_range_max,
+        latitude,
+        longitude,
+        out_of_service,
+        mileage,
+        encryptor.encrypt_text(last_maintenance).decode(),
+        encryptor.encrypt_text(in_service_date).decode(),
     )
+
 
 # Insert multiple dummy scooters
 def insert_dummy_scooters(n=20):
     for _ in range(n):
         scooter = generate_scooter()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO scooters (
                 brand, model, serial_number, top_speed, battery_capacity, soc,
                 target_range_min, target_range_max, latitude, longitude,
                 out_of_service, mileage, last_maintenance, in_service_date
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, scooter)
+        """,
+            scooter,
+        )
     conn.commit()
     print(f"{n} dummy scooter records inserted.")
 
+
 # Run to run
-#insert_dummy_scooters(100) 
+# insert_dummy_scooters(100)
