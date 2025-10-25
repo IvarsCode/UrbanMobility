@@ -90,9 +90,9 @@ def superAdmin(user: User):
         choice = input("Select an option: ").strip()
 
         if choice == "1":
-            pass
+            user.ManageSystemAdministrators()
         elif choice == "2":
-            user.add_user()
+            user.manageServiceEngineers()
         elif choice == "3":
             manage_traveller()
         elif choice == "4":

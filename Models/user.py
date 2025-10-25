@@ -126,6 +126,38 @@ class User:
         except Exception as e:
             print("Error fetching users:", e)
 
+    def ManageSystemAdministrators(self):
+        
+        while True:
+            print("=== Manage System Administrators ===")
+            print("1. Add System Administrator")
+            print("2. Update System Administrator")
+            print("3. Delete System Administrator")
+            print("4 Change password of System Administrator")
+            print("5. Exit")
+
+            choice = input("Select an option: ").strip()
+
+            if choice == "1":
+                pass
+                ##self.addServiceEngineer()
+            elif choice == "2":
+                pass
+                ##self.updateServiceEngineer()
+            elif choice == "3":
+                pass
+                ##self.deleteServiceEngineer()
+            elif choice == "4":
+                pass
+                ##self.changePasswordSE()
+            elif choice == "5":
+                print("Exiting...")
+                break
+            else:
+                clear_terminal()
+                print("[ERROR] Invalid choice. Please try again.")
+
+    
     def manageServiceEngineers(self):
         
         while True:
@@ -156,12 +188,17 @@ class User:
 
     def addServiceEngineer(self):
         clear_terminal()
+        
+        if self.role !="super_administrator" or self.role != "system_administrator":
+            print("You are unauthorized to add a user")
+            return
+
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
         first_name = input("Enter first name: ").strip()
         last_name = input("Enter last name: ").strip()
-        
+           
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
