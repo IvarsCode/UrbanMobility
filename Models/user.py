@@ -5,6 +5,7 @@ from auth.password import input_password, verify_password
 from auth.passwordHash import hash_password
 from ui.terminal import clear_terminal
 from Utils.encryption import Encryptor
+from auth.login import get_user_id_by_username
 
 encryptor = Encryptor()
 
@@ -16,7 +17,13 @@ class User:
         self.passwordHash = passwordHash
         self.role = role
 
-    def add_user(self):
+    def add_system_administrator(self):
+
+        if self.role != "super_administrator":
+            print("You are unauthorized to add a user")
+            return
+
+        print("=== Adding new system administrator ===")
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
         confirm_password = input_password("Confirm password: ").strip()
@@ -24,30 +31,8 @@ class User:
         if password != confirm_password:
             print("Passwords do not match.")
             return
-        match self.role:
-            case "super_administrator":
 
-                print("=== Adding new user ===")
-                print("\nRole of the new user:")
-                print("1. service engineer")
-                print("2. system administrator")
-                role_choice = input("Enter number (1 or 2): ").strip()
-
-                role_map = {"1": "service_engineer", "2": "system_administrator"}
-                role = role_map.get(role_choice)
-
-                if not role:
-                    print("invalid role selected.")
-                    return
-            case "system_administrator":
-                clear_terminal()
-                print("=== Adding new service engineer ===")
-                role = "service_engineer"
-            case "service_engineer":
-                clear_terminal()
-                print("You are unauthorized to add a user")
-                return
-
+        role = "system_administrator"
         first_name = input("Enter first name: ").strip()
         last_name = input("Enter last name: ").strip()
 
@@ -55,8 +40,9 @@ class User:
             with get_connection() as conn:
                 cursor = conn.cursor()
                 # Check if username exists
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                if cursor.fetchone():
+                user_id = get_user_id_by_username(username)
+
+                if user_id != None:
                     print("Username already exists.")
                     return
 
@@ -70,14 +56,6 @@ class User:
                     (username, hashed_password, role),
                 )
 
-                # get userId
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                user_id_row = cursor.fetchone()
-                if user_id_row is None:
-                    print("User not found after insert — unexpected.")
-                    return
-
-                user_id = user_id_row[0]
                 reg_date = datetime.now().strftime("%Y-%m-%d")
 
                 # Insert into profiles table
@@ -86,7 +64,12 @@ class User:
                     INSERT INTO profiles (user_id, first_name, last_name, registration_date)
                     VALUES (?, ?, ?, ?)
                 """,
-                    (user_id, first_name, last_name, reg_date),
+                    (
+                        user_id,
+                        encryptor.encrypt_text(first_name).decode(),
+                        encryptor.encrypt_text(last_name).decode(),
+                        encryptor.encrypt_text(reg_date).decode(),
+                    ),
                 )
 
                 conn.commit()
@@ -142,7 +125,7 @@ class User:
 
             if choice == "1":
                 pass
-                ##self.addServiceEngineer()
+                self.add_system_administrator()
             elif choice == "2":
                 pass
                 ##self.updateServiceEngineer()
@@ -151,7 +134,7 @@ class User:
                 ##self.deleteServiceEngineer()
             elif choice == "4":
                 pass
-                ##self.changePasswordSE()
+                self.change_password()
             elif choice == "5":
                 print("Exiting...")
                 break
@@ -382,57 +365,138 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-    def changePasswordSE(self):
-        print("=== Change Service Engineer Password ===")
-        username = input("Enter username: ").strip()
-        current_password = input_password("Enter current password: ").strip()
+    def change_password(self, target_username=None):
+
+        ROLE_LEVELS = {
+            "service_engineer": 1,
+            "system_administrator": 2,
+            "super_administrator": 3,
+        }
+
+        print("=== Change Password ===")
+
+        # Ask for target username if not provided
+        if not target_username:
+            target_username = input("Enter username to change password for: ").strip()
 
         try:
             with get_connection() as conn:
                 cursor = conn.cursor()
 
-                # Check if user exists
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                user_row = cursor.fetchone()
-                if not user_row:
-                    print("[ERROR] Username doesn't exist.")
-                    return
-
-                user_id = user_row[0]
-
-                # Get stored hash and verify
-                hashed_password = hash_password(current_password)
+                # Retrieve user info
                 cursor.execute(
-                    "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+                    "SELECT id, role, password_hash FROM users WHERE id = ?",
+                    (get_user_id_by_username(target_username),),
                 )
-                stored_password_row = cursor.fetchone()
-                if not stored_password_row:
-                    print("Could not retrieve password.")
-                    return
-                stored_hash = stored_password_row[0]
-
-                if not verify_password(hashed_password, stored_hash):
-                    print("Password or username incorrect.")
+                target_row = cursor.fetchone()
+                if not target_row:
+                    print("[ERROR] Target username not found.")
                     return
 
-                # Ask for new password and confirmation
-                new_password = input_password("Enter new password: ").strip()
-                confirm_password = input_password("Confirm new password: ").strip()
+                target_id, target_role, stored_hash = target_row
+
+                # --- Role validation ---
+                if self.role not in ROLE_LEVELS or target_role not in ROLE_LEVELS:
+                    print("[ERROR] Unknown role detected.")
+                    return
+
+                self_role_level = ROLE_LEVELS[self.role]
+                target_role_level = ROLE_LEVELS[target_role]
+
+                # Prevent changing password of same/higher role (unless it’s your own)
+                if (
+                    target_username != self.userName
+                    and self_role_level <= target_role_level
+                ):
+                    print(
+                        "[ERROR] You cannot change the password of a user with an equal or higher role."
+                    )
+                    return
+
+                # --- If changing own password, verify current one ---
+                if target_username == self.userName:
+                    current_password = input_password("Enter your current password: ")
+                    if not verify_password(current_password, stored_hash):
+                        print("[ERROR] Incorrect current password.")
+                        return
+
+                # --- Get new password (with strength validation inside input_password) ---
+                new_password = input_password(
+                    "Enter new password: ", validate_strength=True
+                )
+                confirm_password = input_password("Confirm new password: ")
 
                 if new_password != confirm_password:
                     print("[ERROR] Passwords do not match.")
                     return
 
-                new_hash = hash_password(new_password)
+                if verify_password(new_password, stored_hash):
+                    print("[ERROR] New password cannot be the same as the old one.")
+                    return
 
-                # Update password
+                # --- Hash and encrypt new password ---
+                new_hash = hash_password(new_password)
+                encrypted_new_hash = encryptor.encrypt_text(new_hash).decode()
+
                 cursor.execute(
                     "UPDATE users SET password_hash = ? WHERE id = ?",
-                    (new_hash, user_id),
+                    (encrypted_new_hash, target_id),
                 )
                 conn.commit()
-                clear_terminal()
-                print(f"[SUCCES] Password of user {username} changed successfully.")
+
+                print(
+                    f"[SUCCESS] Password for user '{target_username}' changed successfully."
+                )
 
         except sqlite3.Error as e:
-            print("Database error:", e)
+            print("[DB ERROR]", e)
+
+    # def changePasswordSE(self):
+    #     print("=== Change Service Engineer Password ===")
+    #     username = input("Enter username: ").strip()
+    #     current_password = input_password("Enter current password: ").strip()
+
+    #     try:
+    #         with get_connection() as conn:
+    #             cursor = conn.cursor()
+
+    #             # Check if user exists
+    #             cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    #             user_row = cursor.fetchone()
+    #             if not user_row:
+    #                 print("[ERROR] Username doesn't exist.")
+    #                 return
+
+    #             user_id = user_row[0]
+
+    #             # Get stored hash and verify
+    #             hashed_password = hash_password(current_password)
+    #             cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    #             stored_password_row = cursor.fetchone()
+    #             if not stored_password_row:
+    #                 print("Could not retrieve password.")
+    #                 return
+    #             stored_hash = stored_password_row[0]
+
+    #             if not verify_password(hashed_password, stored_hash):
+    #                 print("Password or username incorrect.")
+    #                 return
+
+    #             # Ask for new password and confirmation
+    #             new_password = input_password("Enter new password: ").strip()
+    #             confirm_password = input_password("Confirm new password: ").strip()
+
+    #             if new_password != confirm_password:
+    #                 print("[ERROR] Passwords do not match.")
+    #                 return
+
+    #             new_hash = hash_password(new_password)
+
+    #             # Update password
+    #             cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+    #             conn.commit()
+    #             clear_terminal()
+    #             print(f"[SUCCES] Password of user {username} changed successfully.")
+
+    #     except sqlite3.Error as e:
+    #         print("Database error:", e)
