@@ -48,6 +48,10 @@ def serviceEngineer(user: User):
 
 
 def systemAdmin(user: User):
+    if logger.check_suspicious() > 0:
+        print(
+            "[ALERT] There are suspicious log entries. Please review the logs in the menu."
+        )
     while True:
         print("\n=== System Admin Dashboard ===")
         print("1. View Users")
@@ -55,7 +59,8 @@ def systemAdmin(user: User):
         print("3. Manage Travellers")
         print("4. Manage Scooters")
         print("5. Restore Backup")
-        print("6. Exit")
+        print("6. Read Logs")
+        print("7. Exit")
 
         choice = input("Select an option: ").strip()
 
@@ -81,6 +86,19 @@ def systemAdmin(user: User):
 
         elif choice == "6":
             clear_terminal()
+            logs = logger.read_logs()
+            if not logs:
+                print("No logs found.")
+            else:
+                for log in logs:
+                    timestamp, username, description, extra, suspicious, status = log
+                    print(
+                        f"[{timestamp}] {username} | {description} | {extra} | Suspicious: {suspicious} | {status}"
+                    )
+            logger.mark_as_read()
+
+        elif choice == "7":
+            clear_terminal()
             print("Goodbye!")
             break
 
@@ -90,6 +108,10 @@ def systemAdmin(user: User):
 
 
 def superAdmin(user: User):
+    if logger.check_suspicious() > 0:
+        print(
+            "[ALERT] There are suspicious log entries. Please review the logs in the menu."
+        )
     while True:
         print("\n=== Super Admin Dashboard ===")
         print("1. Manage System Administrators")
@@ -125,6 +147,7 @@ def superAdmin(user: User):
                     print(
                         f"[{timestamp}] {username} | {description} | {extra} | Suspicious: {suspicious} | {status}"
                     )
+            logger.mark_as_read()
         elif choice == "6":
             clear_terminal()
             backup_menu()
