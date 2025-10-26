@@ -14,6 +14,7 @@ logger = Logger()
 def start_app():
     user = login()
     if not user:
+        print("Login failed. Exiting application.")
         return
 
     if user.role == "super_administrator":
@@ -58,7 +59,7 @@ def systemAdmin(user: User):
         print("2. Manage Service Engineers")
         print("3. Manage Travellers")
         print("4. Manage Scooters")
-        print("5. Restore Backup")
+        print("5. Make/Restore Backup")
         print("6. Read Logs")
         print("7. Exit")
 
@@ -82,7 +83,7 @@ def systemAdmin(user: User):
 
         elif choice == "5":
             clear_terminal()
-            system_admin_backup_menu(user.username)
+            system_admin_backup_menu(user.userName)
 
         elif choice == "6":
             clear_terminal()
@@ -150,7 +151,7 @@ def superAdmin(user: User):
             logger.mark_as_read()
         elif choice == "6":
             clear_terminal()
-            backup_menu()
+            backup_menu(user)
             pass
         elif choice == "7":
             clear_terminal()
