@@ -6,7 +6,8 @@ from Utils.DummyDataScooter import insert_dummy_scooters
 
 def main():
     try:
-        initialize_db()
+        # initialize_db()
+        # insert_dummy_scooters(100)
         start_app()
     except Exception as e:
         print("[FATAL ERROR]", str(e))

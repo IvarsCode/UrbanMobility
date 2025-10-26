@@ -2,6 +2,9 @@ from datetime import datetime
 import re
 from db.database import get_connection
 from ui.terminal import clear_terminal
+from Utils.encryption import Encryptor
+
+encryptor = Encryptor()
 
 
 class Traveller:
@@ -65,17 +68,17 @@ class Traveller:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    self.first_name,
-                    self.last_name,
-                    self.birthday,
-                    self.gender,
-                    self.street_name,
-                    self.house_number,
-                    self.zip_code,
-                    self.city,
-                    self.email,
-                    self.mobile_phone,
-                    self.driving_license_number,
+                    encryptor.encrypt_text(self.first_name).decode(),
+                    encryptor.encrypt_text(self.last_name).decode(),
+                    encryptor.encrypt_text(self.birthday).decode(),
+                    encryptor.encrypt_text(self.gender).decode(),
+                    encryptor.encrypt_text(self.street_name).decode(),
+                    encryptor.encrypt_text(self.house_number).decode(),
+                    encryptor.encrypt_text(self.zip_code).decode(),
+                    encryptor.encrypt_text(self.city).decode(),
+                    encryptor.encrypt_text(self.email).decode(),
+                    encryptor.encrypt_text(self.mobile_phone).decode(),
+                    encryptor.encrypt_text(self.driving_license_number).decode(),
                 ),
             )
             conn.commit()
@@ -90,38 +93,57 @@ class Traveller:
         fields = {
             "first_name": {
                 "pattern": r"[A-Za-z\-]{2,}",
-                "error": "Must be at least 2 letters.",
+                "error": "At least 2 letters",
+                "encrypted": True,
             },
             "last_name": {
                 "pattern": r"[A-Za-z\-]{2,}",
-                "error": "Must be at least 2 letters.",
+                "error": "At least 2 letters",
+                "encrypted": True,
             },
-            "birthday": {"validator": validate_date},
-            "gender": {"pattern": r"[MFO]", "error": "Must be M, F, or O."},
+            "birthday": {
+                "validator": validate_date,
+                "encrypted": True,
+            },
+            "gender": {
+                "pattern": r"[MFO]",
+                "error": "Must be M, F, or O",
+                "encrypted": True,
+            },
             "street_name": {
                 "pattern": r".{2,}",
-                "error": "Street name must be at least 2 characters.",
+                "error": "At least 2 chars",
+                "encrypted": True,
             },
             "house_number": {
                 "pattern": r"\d+[A-Za-z]?",
-                "error": "Must be numeric, optionally with a letter.",
+                "error": "Invalid format",
+                "encrypted": True,
             },
             "zip_code": {
                 "pattern": r"\d{4}[A-Z]{2}",
-                "error": "Must be in format 1234AB.",
+                "error": "Format 1234AB",
+                "encrypted": True,
             },
-            "city": {"pattern": r".{2,}", "error": "Must be at least 2 characters."},
+            "city": {
+                "pattern": r".{2,}",
+                "error": "At least 2 chars",
+                "encrypted": True,
+            },
             "email": {
                 "pattern": r"[^@]+@[^@]+\.[^@]+",
-                "error": "Invalid email address.",
+                "error": "Invalid email",
+                "encrypted": True,
             },
             "mobile_phone": {
                 "pattern": r"06\d{8}",
-                "error": "Must start with 06 and be 10 digits.",
+                "error": "Must start with 06",
+                "encrypted": True,
             },
             "driving_license_number": {
                 "pattern": r"[A-Z0-9]{8,12}",
-                "error": "Must be 8–12 alphanumeric characters.",
+                "error": "8–12 chars",
+                "encrypted": True,
             },
         }
 
@@ -142,6 +164,9 @@ class Traveller:
         new_value = get_valid_input(
             f"Enter new value for {field_choice}: ", pattern, error_msg, validator
         )
+
+        if field.get("encrypted"):
+            new_value = encryptor.encrypt_text(new_value).decode()
 
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -167,46 +192,69 @@ class Traveller:
     def search_traveller():
         print("=== Search Traveller ===")
         print("1. By ID")
-        print("2. By Name")
+        print("2. By First or Last Name")
         choice = input("Choose option: ").strip()
 
         with get_connection() as conn:
             cursor = conn.cursor()
+            results = []
+
             if choice == "1":
                 traveller_id = input("Enter ID: ").strip()
                 cursor.execute("SELECT * FROM travellers WHERE id = ?", (traveller_id,))
+                results = cursor.fetchall()
+
             elif choice == "2":
-                name = input("Enter first or last name: ").strip()
-                cursor.execute(
-                    "SELECT * FROM travellers WHERE first_name LIKE ? OR last_name LIKE ?",
-                    (f"%{name}%", f"%{name}%"),
-                )
+                term = input("Enter name to search: ").strip().lower()
+                cursor.execute("SELECT * FROM travellers")
+                all_travellers = cursor.fetchall()
+
+                for t in all_travellers:
+                    try:
+                        first_name = encryptor.decrypt_text(t[1].encode()).lower()
+                        last_name = encryptor.decrypt_text(t[2].encode()).lower()
+                    except Exception:
+                        first_name = t[1].lower() if t[1] else ""
+                        last_name = t[2].lower() if t[2] else ""
+
+                    if term in first_name or term in last_name:
+                        results.append(t)
             else:
                 print("[ERROR] Invalid option.")
                 return
 
-            result = cursor.fetchall()
-            if result:
-                for t in result:
+            if results:
+                for t in results:
                     Traveller.print_info(t)
             else:
                 print("[INFO] No traveller found.")
 
     @staticmethod
     def print_info(traveller_data: tuple):
+        encrypted_indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        decrypted_data = list(traveller_data)
+
+        for i in encrypted_indices:
+            value = traveller_data[i]
+            if value is not None:
+                try:
+                    decrypted_data[i] = encryptor.decrypt_text(value.encode())
+                except Exception:
+                    decrypted_data[i] = value
+
         print(
-            f"\nTraveller ID: {traveller_data[0]}"
-            f"\nFirst Name: {traveller_data[1]}"
-            f"\nLast Name: {traveller_data[2]}"
-            f"\nBirthday: {traveller_data[3]}"
-            f"\nGender: {traveller_data[4]}"
-            f"\nStreet Name: {traveller_data[5]}"
-            f"\nHouse Number: {traveller_data[6]}"
-            f"\nZip Code: {traveller_data[7]}"
-            f"\nCity: {traveller_data[8]}"
-            f"\nEmail: {traveller_data[9]}"
-            f"\nMobile Phone: {traveller_data[10]}"
-            f"\nDriving License #: {traveller_data[11]}"
+            f"\nTraveller ID: {decrypted_data[0]}"
+            f"\nFirst Name: {decrypted_data[1]}"
+            f"\nLast Name: {decrypted_data[2]}"
+            f"\nBirthday: {decrypted_data[3]}"
+            f"\nGender: {decrypted_data[4]}"
+            f"\nStreet Name: {decrypted_data[5]}"
+            f"\nHouse Number: {decrypted_data[6]}"
+            f"\nZip Code: {decrypted_data[7]}"
+            f"\nCity: {decrypted_data[8]}"
+            f"\nEmail: {decrypted_data[9]}"
+            f"\nMobile Phone: {decrypted_data[10]}"
+            f"\nDriving License #: {decrypted_data[11]}"
         )
 
     @staticmethod
@@ -238,13 +286,13 @@ def validate_date(date_str):
 
 def manage_traveller():
     while True:
-        clear_terminal()
         print("\n=== Manage Travellers ===")
         print("1. Add Traveller")
         print("2. Update Traveller")
         print("3. Delete Traveller")
         print("4. Search Traveller")
-        print("5. Exit")
+        print("5. Print All Travellers")
+        print("6. Exit")
 
         choice = input("Select an option: ").strip()
 
@@ -321,7 +369,6 @@ def manage_traveller():
         elif choice == "2":
             clear_terminal()
             Traveller.update_traveller()
-            
 
         elif choice == "3":
             clear_terminal()
@@ -332,6 +379,15 @@ def manage_traveller():
             Traveller.search_traveller()
 
         elif choice == "5":
+            travellers = Traveller.get_all_travellers()
+            if travellers:
+                print("=== All Travellers ===")
+                for t in travellers:
+                    Traveller.print_info(t)
+            else:
+                print("[INFO] No travellers found.")
+
+        elif choice == "6":
             clear_terminal()
             print("Exiting...")
             break

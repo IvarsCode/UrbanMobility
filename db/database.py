@@ -3,6 +3,9 @@
 import sqlite3
 import os
 from auth.passwordHash import hash_password
+from Utils.encryption import Encryptor
+
+encryptor = Encryptor()
 
 DB_NAME = "data/urban_mobility.db"
 
@@ -122,7 +125,11 @@ def initialize_db():
         hashed_pw = hash_password("Admin_123?")
         cur.execute(
             "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-            ("super_admin", hashed_pw, "super_administrator"),
+            (
+                encryptor.encrypt_text("super_admin").decode(),  # encrypt username
+                hashed_pw,  # keep password hashed
+                encryptor.encrypt_text("super_administrator").decode(),
+            ),
         )
         print("[INFO] Super Admin created with username: super_admin")
 

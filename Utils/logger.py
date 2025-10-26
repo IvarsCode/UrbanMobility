@@ -1,30 +1,24 @@
-# utils/logger.py
 import os
 from datetime import datetime
+from Utils.encryption import Encryptor
 
 LOG_FILE = "data/logs.enc"
-KEY = "UrbanMobilitySecret"  # Symmetric key (should be kept private)
 
 
 class Logger:
-    def __init__(self, key: str = KEY):
-        self.key = key
-
-    def xor_encrypt(self, text: str) -> bytes:
-        return bytes(
-            [ord(c) ^ ord(self.key[i % len(self.key)]) for i, c in enumerate(text)]
-        )
-
-    def xor_decrypt(self, data: bytes) -> str:
-        return "".join(
-            [chr(b ^ ord(self.key[i % len(self.key)])) for i, b in enumerate(data)]
-        )
+    def __init__(self, encryptor: Encryptor = None):
+        self.encryptor = encryptor or Encryptor()
+        os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
     def log(self, username, description, extra="", suspicious=False):
         now = datetime.now()
-        entry = f"{now.strftime('%Y-%m-%d %H:%M:%S')}|{username}|{description}|{extra}|{'Yes' if suspicious else 'No'}|Unread\n"
-        encrypted = self.xor_encrypt(entry)
+        entry = (
+            f"{now.strftime('%Y-%m-%d %H:%M:%S')}|"
+            f"{username}|{description}|{extra}|"
+            f"{'Yes' if suspicious else 'No'}|Unread"
+        )
 
+        encrypted = self.encryptor.encrypt_text(entry)
         with open(LOG_FILE, "ab") as f:
             f.write(encrypted + b"\n")
 
@@ -36,9 +30,13 @@ class Logger:
         with open(LOG_FILE, "rb") as f:
             for line in f:
                 line = line.strip()
+                if not line:
+                    continue
                 try:
-                    decrypted = self.xor_decrypt(line)
+                    decrypted = self.encryptor.decrypt_text(line)
                     parts = decrypted.split("|")
+                    if len(parts) < 6:
+                        continue
                     if only_suspicious and parts[4] != "Yes":
                         continue
                     logs.append(parts)
@@ -53,14 +51,17 @@ class Logger:
         updated_lines = []
         with open(LOG_FILE, "rb") as f:
             for line in f:
+                line = line.strip()
+                if not line:
+                    continue
                 try:
-                    decrypted = self.xor_decrypt(line.strip())
+                    decrypted = self.encryptor.decrypt_text(line)
                     if "Yes|Unread" in decrypted:
                         decrypted = decrypted.replace("Yes|Unread", "Yes|Read")
-                    encrypted = self.xor_encrypt(decrypted)
+                    encrypted = self.encryptor.encrypt_text(decrypted)
                     updated_lines.append(encrypted)
                 except Exception:
-                    updated_lines.append(line.strip())
+                    updated_lines.append(line)
 
         with open(LOG_FILE, "wb") as f:
             for line in updated_lines:
