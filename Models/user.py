@@ -17,6 +17,60 @@ class User:
         self.passwordHash = passwordHash
         self.role = role
 
+    def ManageSystemAdministrators(self):
+
+        while True:
+            print("=== Manage System Administrators ===")
+            print("1. Add System Administrator")
+            print("2. Update System Administrator")
+            print("3. Delete System Administrator")
+            print("4 Change password of System Administrator")
+            print("5. Exit")
+
+            choice = input("Select an option: ").strip()
+
+            if choice == "1":
+                self.add_system_administrator()
+            elif choice == "2":
+                self.update_user()
+            elif choice == "3":
+                self.delete_system_administrator()
+            elif choice == "4":
+                self.change_password()
+            elif choice == "5":
+                print("Exiting...")
+                break
+            else:
+                clear_terminal()
+                print("[ERROR] Invalid choice. Please try again.")
+
+    def manageServiceEngineers(self):
+
+        while True:
+            print("=== Manage Service Engineers ===")
+            print("1. Add Service Engineer")
+            print("2. Update Service Engineer")
+            print("3. Delete Service Engineer")
+            print("4 Change password of Service Engineer")
+            print("5. Exit")
+
+            choice = input("Select an option: ").strip()
+
+            if choice == "1":
+                self.add_service_engineer()
+            elif choice == "2":
+                self.update_service_engineer()
+            elif choice == "3":
+                self.delete_service_engineer()
+            elif choice == "4":
+                self.change_password()
+            elif choice == "5":
+                print("Exiting...")
+                break
+            else:
+                clear_terminal()
+                print("[ERROR] Invalid choice. Please try again.")
+
     def add_system_administrator(self):
 
         if self.role != "super_administrator":
@@ -53,7 +107,11 @@ class User:
                     """
                     INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)
                 """,
-                    (username, hashed_password, role),
+                    (
+                        encryptor.encrypt_text(username).decode(),
+                        encryptor.encrypt_text(hashed_password).decode(),
+                        encryptor.encrypt_text(role).decode(),
+                    ),
                 )
 
                 reg_date = datetime.now().strftime("%Y-%m-%d")
@@ -78,98 +136,182 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-    def display_users(self):
+    def update_user(self):
+        clear_terminal()
+        username = input("Enter username: ").strip()
+        password = input_password("Enter password: ").strip()
 
         try:
-            clear_terminal()
-            print("=== User display ===")
-            start = input("Enter starting index (0 for beginning): ").strip()
-            if not start.isdigit():
-                print("Invalid input. Must be a non-negative number.")
-                return
-
-            offset = int(start)
-
             with get_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute(
-                    "SELECT username, role FROM users LIMIT 100 OFFSET ?", (offset,)
-                )
-                users = cursor.fetchall()
+                # Check if username exists
+                user_id = get_user_id_by_username(username)
 
-                if not users:
-                    print("\nNo users found from this starting point.")
+                if user_id == None:
+                    print("Username doesn't exists.")
                     return
 
-                print(
-                    f"\n=== Users List (From {offset} to {offset + len(users) - 1}) ==="
+                # test if passwords match
+                hashed_password = hash_password(password)
+                cursor.execute(
+                    "SELECT password_hash FROM users WHERE id = ?", (user_id)
                 )
-                for username, role in users:
-                    print(f"Username: {username} | Role: {role}")
+                stored_password_row = cursor.fetchone()
 
-        except Exception as e:
-            print("Error fetching users:", e)
+                if not stored_password_row:
+                    print("Could not retrieve password.")
+                    return
 
-    def ManageSystemAdministrators(self):
+                stored_hash = stored_password_row[0]
 
-        while True:
-            print("=== Manage System Administrators ===")
-            print("1. Add System Administrator")
-            print("2. Update System Administrator")
-            print("3. Delete System Administrator")
-            print("4 Change password of System Administrator")
-            print("5. Exit")
+                if not verify_password(hashed_password, stored_hash):
+                    print("Password or username incorrect.")
+                    return
 
-            choice = input("Select an option: ").strip()
+                cursor.execute(
+                    "SELECT role FROM users WHERE id = ?",
+                    (get_user_id_by_username(username),),
+                )
 
-            if choice == "1":
-                pass
-                self.add_system_administrator()
-            elif choice == "2":
-                pass
-                ##self.updateServiceEngineer()
-            elif choice == "3":
-                pass
-                ##self.deleteServiceEngineer()
-            elif choice == "4":
-                pass
-                self.change_password()
-            elif choice == "5":
-                print("Exiting...")
-                break
-            else:
+                encrypted_user_subject_role = cursor.fetchone()
+                decrypted_user_subject_role = encryptor.decrypt_text(
+                    encrypted_user_subject_role.encode()
+                )
+                print("[ERROR] No user found.")
+
                 clear_terminal()
-                print("[ERROR] Invalid choice. Please try again.")
 
-    def manageServiceEngineers(self):
+                if self.role == "service_engineer":
+                    # Service engineers cannot update anyone
+                    print("\n === Not authorized to perform updates ===")
+                    return
 
-        while True:
-            print("=== Manage Service Engineers ===")
-            print("1. Add Service Engineer")
-            print("2. Update Service Engineer")
-            print("3. Delete Service Engineer")
-            print("4 Change password of Service Engineer")
-            print("5. Exit")
+                elif self.role == "system_administrator":
+                    # System admin updating another system admin
+                    if (
+                        decrypted_user_subject_role == "system_administrator"
+                        and self.id != user_id
+                    ):
+                        print(
+                            "\n === Not authorized to update another system administrator ==="
+                        )
+                        return
+                    # System admin trying to update a super admin
+                    elif decrypted_user_subject_role == "super_administrator":
+                        print(
+                            "\n === Not authorized to update a super administrator ==="
+                        )
+                        return
+                    # System admin updating self or a service engineer
+                    else:
+                        print("\n === Update Service Engineer/System Administrator ===")
 
-            choice = input("Select an option: ").strip()
+                elif self.role == "super_administrator":
+                    # Super admin cannot update themselves
+                    if self.id == user_id:
+                        print("\n === Unable to update super administrator (self) ===")
+                        return
+                    # Can update system administrators or service engineers
+                    else:
+                        print("\n === Update Service Engineer/System Administrator ===")
 
-            if choice == "1":
-                self.addServiceEngineer()
-            elif choice == "2":
-                self.updateServiceEngineer()
-            elif choice == "3":
-                self.deleteServiceEngineer()
-            elif choice == "4":
-                self.changePasswordSE()
-            elif choice == "5":
-                print("Exiting...")
-                break
-            else:
+                else:
+                    print("\n === No valid login ===")
+                    return
+
+                # If the update is allowed, show options
+                print("1. Update Username")
+                print("2. Update First name")
+                print("3. Update Last name")
+                choice = input("Enter number (1-3): ").strip()
+
+                # Update users table
+                if choice == "1":
+                    new_userName = input("Enter new username: ").strip()
+                    cursor.execute(
+                        "UPDATE users SET username = ? WHERE id = ?",
+                        (encryptor.encrypt_text(new_userName).decode(), user_id),
+                    )
+                    clear_terminal()
+                    print(f"[SUCCES] User {new_userName} updated succesfully")
+
+                # Update profiles table
+                elif choice == "2":
+                    new_firstName = input("Enter new first name: ").strip()
+                    cursor.execute(
+                        "UPDATE profiles SET first_name = ? WHERE user_id = ?",
+                        (encryptor.encrypt_text(new_firstName).decode(), user_id),
+                    )
+                    clear_terminal()
+                    print(f"[SUCCES] User {username} updated succesfully")
+
+                # Update profiles table
+                elif choice == "3":
+                    new_lastName = input("Enter new last name: ").strip()
+                    cursor.execute(
+                        "UPDATE profiles SET last_name = ? WHERE user_id = ?",
+                        (encryptor.encrypt_text(new_lastName).decode(), user_id),
+                    )
+                    clear_terminal()
+                    print(f"[SUCCES] User {username} updated succesfully")
+
+                else:
+                    print("[ERROR] Invalid choice.")
+                    return
+
+                conn.commit()
+
+        except sqlite3.Error as e:
+            print("Database error:", e)
+
+    def delete_system_administrator():
+        username = input("Enter username: ").strip()
+        password = input_password("Enter password: ").strip()
+
+        try:
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                # Check if username exists
+                user_id = get_user_id_by_username(username)
+
+                if user_id == None:
+                    print("Username doesn't exists.")
+                    return
+
+                hashed_password = hash_password(password)
+
+                # test if passwords match
+                hashed_password = hash_password(password)
+                cursor.execute(
+                    "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+                )
+                stored_password_row = cursor.fetchone()
+                if not stored_password_row:
+                    print("Could not retrieve password.")
+                    return
+                stored_hash = stored_password_row[0]
+                if not verify_password(hashed_password, stored_hash):
+                    print("Password or username incorrect.")
+                    return
+
+                # delete user from profiles
+                cursor.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
+                if cursor.rowcount == 0:
+                    print("User not found or already deleted.")
+
+                # delete user from users
+                cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+                if cursor.rowcount == 0:
+                    print("User not found or already deleted.")
+
+                conn.commit()
                 clear_terminal()
-                print("[ERROR] Invalid choice. Please try again.")
+                print(f"[SUCCES] User {username} deleted succesfully")
+        except sqlite3.Error as e:
+            print("Database error:", e)
 
-    def addServiceEngineer(self):
+    def add_service_engineer(self):
         clear_terminal()
 
         if self.role != "super_administrator" or self.role != "system_administrator":
@@ -186,8 +328,9 @@ class User:
             with get_connection() as conn:
                 cursor = conn.cursor()
                 # Check if username exists
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                if cursor.fetchone():
+                user_id = get_user_id_by_username(username)
+
+                if user_id != None:
                     print("Username already exists.")
                     return
 
@@ -226,8 +369,86 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-    def updateServiceEngineer(self):
-        clear_terminal()
+    # def update_service_engineer(self):
+    #     clear_terminal()
+    #     username = input("Enter username: ").strip()
+    #     password = input_password("Enter password: ").strip()
+
+    #     try:
+    #         with get_connection() as conn:
+    #             cursor = conn.cursor()
+
+    #             # Check if username exists
+    #             user_id = get_user_id_by_username(username)
+
+    #             if user_id == None:
+    #                 print("Username already exists.")
+    #                 return
+
+    #             # test if passwords match
+    #             hashed_password = hash_password(password)
+    #             cursor.execute(
+    #                 "SELECT password_hash FROM users WHERE id = ?", (user_id)
+    #             )
+    #             stored_password_row = cursor.fetchone()
+
+    #             if not stored_password_row:
+    #                 print("Could not retrieve password.")
+    #                 return
+
+    #             stored_hash = stored_password_row[0]
+
+    #             if not verify_password(hashed_password, stored_hash):
+    #                 print("Password or username incorrect.")
+    #                 return
+
+    #             clear_terminal()
+    #             print("\n === Update Service Engineer ===")
+    #             print("1. Update Username")
+    #             print("2. Update First name")
+    #             print("3. Update Last name")
+    #             choice = input("Enter number (1-3): ").strip()
+
+    #             # Update users table
+    #             if choice == "1":
+    #                 new_userName = input("Enter new username: ").strip()
+    #                 cursor.execute(
+    #                     "UPDATE users SET username = ? WHERE id = ?",
+    #                     (encryptor.encrypt_text(new_userName).decode(), user_id),
+    #                 )
+    #                 clear_terminal()
+    #                 print(f"[SUCCES] User {new_userName} updated succesfully")
+
+    #             # Update profiles table
+    #             elif choice == "2":
+    #                 new_firstName = input("Enter new first name: ").strip()
+    #                 cursor.execute(
+    #                     "UPDATE profiles SET first_name = ? WHERE user_id = ?",
+    #                     (encryptor.encrypt_text(new_firstName).decode(), user_id),
+    #                 )
+    #                 clear_terminal()
+    #                 print(f"[SUCCES] User {username} updated succesfully")
+
+    #             # Update profiles table
+    #             elif choice == "3":
+    #                 new_lastName = input("Enter new last name: ").strip()
+    #                 cursor.execute(
+    #                     "UPDATE profiles SET last_name = ? WHERE user_id = ?",
+    #                     (encryptor.encrypt_text(new_lastName).decode(), user_id),
+    #                 )
+    #                 clear_terminal()
+    #                 print(f"[SUCCES] User {username} updated succesfully")
+
+    #             else:
+    #                 print("[ERROR] Invalid choice.")
+    #                 return
+
+    #             conn.commit()
+
+    #     except sqlite3.Error as e:
+    #         print("Database error:", e)
+
+    def delete_service_engineer(self):
         username = input("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
@@ -235,93 +456,10 @@ class User:
             with get_connection() as conn:
                 cursor = conn.cursor()
                 # Check if username exists
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                if not cursor.fetchone():
-                    print("Username doesn't exist.")
-                    return
+                user_id = get_user_id_by_username(username)
 
-                # test if passwords match
-                hashed_password = hash_password(password)
-                cursor.execute(
-                    "SELECT password_hash FROM users WHERE username = ?", (username,)
-                )
-                stored_password_row = cursor.fetchone()
-
-                if not stored_password_row:
-                    print("Could not retrieve password.")
-                    return
-
-                stored_hash = stored_password_row[0]
-
-                if not verify_password(hashed_password, stored_hash):
-                    print("Password or username incorrect.")
-                    return
-
-                # get userId
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                user_id_row = cursor.fetchone()
-                if user_id_row is None:
-                    print("User not found after insert — unexpected.")
-                    return
-
-                user_id = user_id_row[0]
-                clear_terminal()
-                print("\n === Update Service Engineer ===")
-                print("1. Update Username")
-                print("2. Update First name")
-                print("3. Update Last name")
-                choice = input("Enter number (1-3): ").strip()
-
-                # Update users table
-                if choice == "1":
-                    new_userName = input("Enter new username: ").strip()
-                    cursor.execute(
-                        "UPDATE users SET username = ? WHERE id = ?",
-                        (new_userName, user_id),
-                    )
-                    clear_terminal()
-                    print(f"[SUCCES] User {new_userName} updated succesfully")
-
-                # Update profiles table
-                elif choice == "2":
-                    new_firstName = input("Enter new first name: ").strip()
-                    cursor.execute(
-                        "UPDATE profiles SET first_name = ? WHERE user_id = ?",
-                        (new_firstName, user_id),
-                    )
-                    clear_terminal()
-                    print(f"[SUCCES] User {username} updated succesfully")
-
-                # Update profiles table
-                elif choice == "3":
-                    new_lastName = input("Enter new last name: ").strip()
-                    cursor.execute(
-                        "UPDATE profiles SET last_name = ? WHERE user_id = ?",
-                        (new_lastName, user_id),
-                    )
-                    clear_terminal()
-                    print(f"[SUCCES] User {username} updated succesfully")
-
-                else:
-                    print("[ERROR] Invalid choice.")
-                    return
-
-                conn.commit()
-
-        except sqlite3.Error as e:
-            print("Database error:", e)
-
-    def deleteServiceEngineer(self):
-        username = input("Enter username: ").strip()
-        password = input_password("Enter password: ").strip()
-
-        try:
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                # Check if username exists
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                if not cursor.fetchone():
-                    print("Username doesn't exist.")
+                if user_id == None:
+                    print("Username doesn't exists.")
                     return
 
                 hashed_password = hash_password(password)
@@ -329,7 +467,7 @@ class User:
                 # test if passwords match
                 hashed_password = hash_password(password)
                 cursor.execute(
-                    "SELECT password_hash FROM users WHERE username = ?", (username,)
+                    "SELECT password_hash FROM users WHERE id = ?", (user_id,)
                 )
                 stored_password_row = cursor.fetchone()
                 if not stored_password_row:
@@ -339,15 +477,6 @@ class User:
                 if not verify_password(hashed_password, stored_hash):
                     print("Password or username incorrect.")
                     return
-
-                # get userId
-                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-                user_id_row = cursor.fetchone()
-                if user_id_row is None:
-                    print("User not found — unexpected.")
-                    return
-
-                user_id = user_id_row[0]
 
                 # delete user from profiles
                 cursor.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
@@ -355,7 +484,7 @@ class User:
                     print("User not found or already deleted.")
 
                 # delete user from users
-                cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+                cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
                 if cursor.rowcount == 0:
                     print("User not found or already deleted.")
 
@@ -364,6 +493,39 @@ class User:
                 print(f"[SUCCES] User {username} deleted succesfully")
         except sqlite3.Error as e:
             print("Database error:", e)
+
+    def display_users(self):
+
+        try:
+            clear_terminal()
+            print("=== User display ===")
+            start = input("Enter starting index (0 for beginning): ").strip()
+            if not start.isdigit():
+                print("Invalid input. Must be a non-negative number.")
+                return
+
+            offset = int(start)
+
+            with get_connection() as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(
+                    "SELECT username, role FROM users LIMIT 100 OFFSET ?", (offset,)
+                )
+                users = cursor.fetchall()
+
+                if not users:
+                    print("\nNo users found from this starting point.")
+                    return
+
+                print(
+                    f"\n=== Users List (From {offset} to {offset + len(users) - 1}) ==="
+                )
+                for username, role in users:
+                    print(f"Username: {username} | Role: {role}")
+
+        except Exception as e:
+            print("Error fetching users:", e)
 
     def change_password(self, target_username=None):
 
