@@ -109,7 +109,7 @@ class User:
                 """,
                     (
                         encryptor.encrypt_text(username).decode(),
-                        encryptor.encrypt_text(hashed_password).decode(),
+                        hashed_password,
                         encryptor.encrypt_text(role).decode(),
                     ),
                 )
