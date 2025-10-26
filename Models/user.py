@@ -1,7 +1,7 @@
 import sqlite3
 from datetime import datetime
 from db.database import get_connection
-from auth.password import input_password, verify_password
+from auth.password import input_password, input_username, verify_password
 from auth.passwordHash import hash_password
 from ui.terminal import clear_terminal
 from Utils.encryption import Encryptor
@@ -59,7 +59,7 @@ class User:
             if choice == "1":
                 self.add_service_engineer()
             elif choice == "2":
-                self.update_service_engineer()
+                self.update_user()
             elif choice == "3":
                 self.delete_service_engineer()
             elif choice == "4":
@@ -78,7 +78,7 @@ class User:
             return
 
         print("=== Adding new system administrator ===")
-        username = input("Enter username: ").strip()
+        username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
         confirm_password = input_password("Confirm password: ").strip()
         clear_terminal()
@@ -138,7 +138,7 @@ class User:
 
     def update_user(self):
         clear_terminal()
-        username = input("Enter username: ").strip()
+        username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
         try:
@@ -188,7 +188,7 @@ class User:
                     return
 
                 elif self.role == "system_administrator":
-                    # System admin updating another system admin
+                    # --- System Administrator Rules ---
                     if (
                         decrypted_user_subject_role == "system_administrator"
                         and self.id != user_id
@@ -197,30 +197,48 @@ class User:
                             "\n === Not authorized to update another system administrator ==="
                         )
                         return
-                    # System admin trying to update a super admin
+
                     elif decrypted_user_subject_role == "super_administrator":
                         print(
                             "\n === Not authorized to update a super administrator ==="
                         )
                         return
-                    # System admin updating self or a service engineer
+
+                    elif self.id == user_id:
+                        # System administrator updating their own info
+                        print("\n === Update own System Administrator account ===")
+
+                    elif decrypted_user_subject_role == "service_engineer":
+                        # System administrator updating a service engineer
+                        print("\n === Update Service Engineer ===")
+
                     else:
-                        print("\n === Update Service Engineer/System Administrator ===")
+                        print("\n === No valid target for update ===")
+                        return
 
                 elif self.role == "super_administrator":
-                    # Super admin cannot update themselves
+                    # --- Super Administrator Rules ---
                     if self.id == user_id:
                         print("\n === Unable to update super administrator (self) ===")
                         return
-                    # Can update system administrators or service engineers
+
+                    elif decrypted_user_subject_role == "system_administrator":
+                        # Super admin updating a system administrator
+                        print("\n === Update System Administrator ===")
+
+                    elif decrypted_user_subject_role == "service_engineer":
+                        # Super admin updating a service engineer
+                        print("\n === Update Service Engineer ===")
+
                     else:
-                        print("\n === Update Service Engineer/System Administrator ===")
+                        print("\n === No valid target for update ===")
+                        return
 
                 else:
                     print("\n === No valid login ===")
                     return
 
-                # If the update is allowed, show options
+                # the update is allowed
                 print("1. Update Username")
                 print("2. Update First name")
                 print("3. Update Last name")
@@ -228,7 +246,7 @@ class User:
 
                 # Update users table
                 if choice == "1":
-                    new_userName = input("Enter new username: ").strip()
+                    new_userName = input_username("Enter new username: ").strip()
                     cursor.execute(
                         "UPDATE users SET username = ? WHERE id = ?",
                         (encryptor.encrypt_text(new_userName).decode(), user_id),
@@ -266,7 +284,7 @@ class User:
             print("Database error:", e)
 
     def delete_system_administrator():
-        username = input("Enter username: ").strip()
+        username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
         try:
@@ -318,7 +336,7 @@ class User:
             print("You are unauthorized to add a user")
             return
 
-        username = input("Enter username: ").strip()
+        username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
         first_name = input("Enter first name: ").strip()
@@ -449,7 +467,7 @@ class User:
     #         print("Database error:", e)
 
     def delete_service_engineer(self):
-        username = input("Enter username: ").strip()
+        username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
         try:
@@ -539,7 +557,9 @@ class User:
 
         # Ask for target username if not provided
         if not target_username:
-            target_username = input("Enter username to change password for: ").strip()
+            target_username = input_username(
+                "Enter username to change password for: "
+            ).strip()
 
         try:
             with get_connection() as conn:
