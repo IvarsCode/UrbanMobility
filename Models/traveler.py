@@ -164,6 +164,8 @@ class Traveller:
         new_value = get_valid_input(
             f"Enter new value for {field_choice}: ", pattern, error_msg, validator
         )
+        if new_value is None:
+            return
 
         if field.get("encrypted"):
             new_value = encryptor.encrypt_text(new_value).decode()
@@ -265,23 +267,28 @@ class Traveller:
             return cursor.fetchall()
 
 
-def get_valid_input(prompt, pattern=None, error_msg=None, validator=None):
+def get_valid_input(
+    prompt, pattern=None, error_msg=None, validator=None, allow_back=True
+):
     while True:
         value = input(prompt).strip()
+        if allow_back and value.lower() == "q":
+            return None  # Signal to go back
         if pattern and not re.fullmatch(pattern, value):
             print(f"[ERROR] {error_msg}")
             continue
         if validator:
             try:
-                validator(value)
-            except ValueError as ve:
-                print(f"[ERROR] {ve}")
+                return validator(value)
+            except Exception as e:
+                print(f"[ERROR] {e}")
                 continue
         return value
 
 
 def validate_date(date_str):
-    datetime.strptime(date_str, "%Y-%m-%d")  # Will raise ValueError if invalid
+    datetime.strptime(date_str, "%Y-%m-%d")
+    return date_str
 
 
 def manage_traveller():
@@ -297,56 +304,80 @@ def manage_traveller():
         choice = input("Select an option: ").strip()
 
         if choice == "1":
+            clear_terminal()
+            print("=== Add New Traveller ===")
+            print("(Enter 'Q' at any prompt to quit)\n")
+
             try:
                 first_name = get_valid_input(
                     "First name: ",
                     r"[A-Za-z\-]{2,}",
                     "First name must be at least 2 letters.",
                 )
+                if first_name is None:
+                    return
                 last_name = get_valid_input(
                     "Last name: ",
                     r"[A-Za-z\-]{2,}",
                     "Last name must be at least 2 letters.",
                 )
+                if last_name is None:
+                    return
                 gender = get_valid_input(
                     "Gender (M/F/O): ", r"[MFO]", "Gender must be M, F, or O."
                 )
+                if gender is None:
+                    return
                 birthday = get_valid_input(
                     "Birthday (YYYY-MM-DD): ", validator=validate_date
                 )
+                if birthday is None:
+                    return
                 zip_code = get_valid_input(
                     "Zip Code (e.g., 1234AB): ",
                     r"\d{4}[A-Z]{2}",
                     "Format must be 1234AB.",
                 )
+                if zip_code is None:
+                    return
                 city = get_valid_input(
                     "City: ", r".{2,}", "City name must be at least 2 characters."
                 )
+                if city is None:
+                    return
                 street_name = get_valid_input(
                     "Street Name: ",
                     r".{2,}",
                     "Street name must be at least 2 characters.",
                 )
+                if street_name is None:
+                    return
                 house_number = get_valid_input(
                     "House Number: ",
                     r"\d+[A-Za-z]?",
                     "Must be numeric, optionally with a letter.",
                 )
-
+                if house_number is None:
+                    return
                 mobile_phone = get_valid_input(
                     "Mobile Phone (06XXXXXXXX): ",
                     r"06\d{8}",
                     "Must start with 06 and be 10 digits.",
                 )
+                if mobile_phone is None:
+                    return
                 email = get_valid_input(
                     "Email: ", r"[^@]+@[^@]+\.[^@]+", "Invalid email address format."
                 )
-
+                if email is None:
+                    return
                 driving_license_number = get_valid_input(
                     "Driving License Number: ",
                     r"[A-Z0-9]{8,12}",
                     "Must be 8–12 alphanumeric characters.",
                 )
+                if driving_license_number is None:
+                    return
 
                 t = Traveller(
                     first_name,

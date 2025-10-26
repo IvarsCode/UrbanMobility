@@ -44,7 +44,7 @@ class Logger:
                     continue
         return logs
 
-    def mark_suspicious_as_read(self):
+    def mark_as_read(self):
         if not os.path.exists(LOG_FILE):
             return
 
@@ -56,8 +56,8 @@ class Logger:
                     continue
                 try:
                     decrypted = self.encryptor.decrypt_text(line)
-                    if "Yes|Unread" in decrypted:
-                        decrypted = decrypted.replace("Yes|Unread", "Yes|Read")
+                    if "Unread" in decrypted:
+                        decrypted = decrypted.replace("Unread", "Read")
                     encrypted = self.encryptor.encrypt_text(decrypted)
                     updated_lines.append(encrypted)
                 except Exception:
@@ -66,3 +66,22 @@ class Logger:
         with open(LOG_FILE, "wb") as f:
             for line in updated_lines:
                 f.write(line + b"\n")
+
+    def check_suspicious(self):
+        if not os.path.exists(LOG_FILE):
+            return
+
+        sus_logs = 0
+        with open(LOG_FILE, "rb") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    decrypted = self.encryptor.decrypt_text(line)
+                    if "Yes|Unread" in decrypted:
+                        sus_logs += 1
+                except Exception:
+                    sus_logs += 0
+
+        return sus_logs
