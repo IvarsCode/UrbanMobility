@@ -6,6 +6,7 @@ from Models.scooter import Scooter, manage_scooter
 from Models.traveler import manage_traveller
 from Utils.logger import Logger
 from ui.terminal import clear_terminal
+from Utils.BackupService import BackupService
 
 logger = Logger()
 
@@ -108,6 +109,10 @@ def superAdmin(user: User):
                         f"[{timestamp}] {username} | {description} | {extra} | Suspicious: {suspicious} | {status}"
                     )
         elif choice == "6":
+            # backup_file = BackupService.make_backup()
+            # admin_name = input("Assign restore code to which admin? ").strip().toLowerCase()
+            # code = BackupService.generate_restore_code(backup_file, admin_name)
+
             pass
         elif choice == "7":
             print("Goodbye!")
