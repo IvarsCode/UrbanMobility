@@ -1,5 +1,5 @@
 import os
-import shutil
+import sys
 import datetime
 import uuid
 import zipfile
@@ -7,6 +7,7 @@ from db.database import get_connection, DB_NAME
 from Models.user import User
 from Utils.encryption import Encryptor
 from Utils.logger import Logger
+
 
 BACKUP_DIR = "data/backups"
 os.makedirs(BACKUP_DIR, exist_ok=True)
@@ -171,6 +172,55 @@ class BackupService:
         print(f"[INFO] Backup {file_name} restored successfully by {requesting_admin}.")
         return True
 
+    @staticmethod
+    def restore_backup_superadmin(backup_filename: str):
+        """
+        Allows the super admin to restore any backup directly, bypassing restore codes.
+        """
+        backup_path = os.path.join(BACKUP_DIR, backup_filename)
+
+        if not os.path.exists(backup_path):
+            logger.log(
+                username="super_admin",
+                description="SuperAdmin restore failed",
+                extra=f"Backup not found: {backup_filename}",
+                suspicious=True,
+            )
+            raise FileNotFoundError("Backup file not found.")
+
+        try:
+            with zipfile.ZipFile(backup_path, "r") as zipf:
+                zipf.extract(os.path.basename(DB_NAME), path="data/")
+
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    UPDATE backups
+                    SET used = 1
+                    WHERE file_name = ?
+                    """,
+                    (backup_filename,),
+                )
+                conn.commit()
+
+            logger.log(
+                username="super_admin",
+                description="SuperAdmin restored backup directly",
+                extra=f"Backup file: {backup_filename}",
+            )
+
+            print(f"[INFO] SuperAdmin restored backup: {backup_filename}")
+            return True
+
+        except Exception as e:
+            logger.log(
+                username="super_admin",
+                description="SuperAdmin direct restore failed",
+                extra=str(e),
+                suspicious=True,
+            )
+            raise
+
 
 def backup_menu(user: User):
     while True:
@@ -178,8 +228,9 @@ def backup_menu(user: User):
         print("1. Create new backup")
         print("2. Generate restore code for an existing backup")
         print("3. Revoke restore code")
-        print("4. List all backups")
-        print("5. Return to main menu")
+        print("4. Restore backup")
+        print("5. List all backups")
+        print("6. Return to main menu")
 
         choice = input("Select an option: ").strip()
 
@@ -258,6 +309,49 @@ def backup_menu(user: User):
             try:
                 with get_connection() as conn:
                     cur = conn.cursor()
+                    cur.execute("SELECT file_name, created_by, created_at FROM backups")
+                    backups = cur.fetchall()
+
+                if not backups:
+                    print("No backups found.")
+                    continue
+
+                print("\nAvailable backups:")
+                for i, (file_name, created_by, created_at) in enumerate(
+                    backups, start=1
+                ):
+                    print(
+                        f"{i}. {file_name} (Created by {created_by}, Date: {created_at})"
+                    )
+
+                index = input("Select backup to restore: ").strip()
+                if not index.isdigit() or int(index) < 1 or int(index) > len(backups):
+                    print("[ERROR] Invalid selection.")
+                    continue
+
+                backup_file = backups[int(index) - 1][0]
+
+                confirm = (
+                    input(
+                        f" Confirm restore of {backup_file}? This will overwrite the current database! (yes/no): "
+                    )
+                    .strip()
+                    .lower()
+                )
+                if confirm != "yes":
+                    print("Restore cancelled.")
+                    continue
+
+                BackupService.restore_backup_superadmin(backup_file)
+                print("[SUCCESS] Database restored successfully!")
+
+            except Exception as e:
+                print(f"[ERROR] Could not restore backup: {e}")
+
+        elif choice == "5":
+            try:
+                with get_connection() as conn:
+                    cur = conn.cursor()
                     cur.execute(
                         "SELECT file_name, created_by, created_at, restore_code, assigned_to, used FROM backups"
                     )
@@ -285,7 +379,7 @@ def backup_menu(user: User):
             except Exception as e:
                 print(f"[ERROR] Could not list backups: {e}")
 
-        elif choice == "5":
+        elif choice == "6":
             break
         else:
             print("[ERROR] Invalid option.")
@@ -316,6 +410,12 @@ def system_admin_backup_menu(admin_username: str):
                 )
                 if success:
                     print(f"[SUCCESS] Database restored successfully!")
+
+                    from auth.login import login
+
+                    python = sys.executable
+                    os.execl(python, python, *sys.argv)
+
                 else:
                     print("[ERROR] Restore failed.")
             except Exception as e:
