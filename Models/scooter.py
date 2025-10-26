@@ -127,40 +127,183 @@ class Scooter:
     @staticmethod
     def add_scooter():
         print("=== Add New Scooter ===")
+        print("(Enter 'q' at any prompt to quit)")
+        try:
+            brand = get_valid_input(
+                "Brand: ", r".{2,}", "Brand must be at least 2 characters."
+            )
+            if brand is None:
+                return
 
-        brand = input("Enter brand: ").strip()
-        model = input("Enter model: ").strip()
-        serial_number = input("Enter serial number (10–17 chars): ").strip()
-        top_speed = float(input("Enter top speed (km/h): ").strip())
-        battery_capacity = int(input("Enter battery capacity (Wh): ").strip())
-        soc = float(input("Enter current state of charge (%): ").strip())
-        target_range_min = float(input("Enter target range minimum SoC (%): ").strip())
-        target_range_max = float(input("Enter target range maximum SoC (%): ").strip())
-        latitude = float(input("Enter latitude: ").strip())
-        longitude = float(input("Enter longitude: ").strip())
-        out_of_service = (
-            input("Is scooter out of service? (yes/no): ").strip().lower() == "yes"
-        )
-        mileage = float(input("Enter mileage (km): ").strip())
-        last_maintenance = input("Enter last maintenance date (YYYY-MM-DD): ").strip()
-        in_service_date = input("Enter in service date (YYYY-MM-DD): ").strip()
+            model = get_valid_input("Model: ", r".{1,}", "Model must be provided.")
+            if model is None:
+                return
 
-        scooter = Scooter(
-            brand=brand,
-            model=model,
-            serialNumber=serial_number,
-            topSpeed=top_speed,
-            batteryCapacity=battery_capacity,
-            SoC=soc,
-            targetRangeSoC=[target_range_min, target_range_max],
-            location=[latitude, longitude],
-            outOfService=out_of_service,
-            mileage=mileage,
-            lastMaintenanceDate=last_maintenance,
-            inServiceDate=in_service_date,
-        )
+            serial_number = get_valid_input(
+                "Serial number (10–17 chars, uppercase A–Z, 0–9): ",
+                r"[A-Z0-9]{10,17}",
+                "Serial number must be 10–17 uppercase alphanumeric characters.",
+            )
+            if serial_number is None:
+                return
 
-        scooter.add_to_db()
+            top_speed = get_valid_input(
+                "Top speed (km/h): ", r"\d+", "Top speed must be a positive integer."
+            )
+            if top_speed is None:
+                return
+
+            battery_capacity = get_valid_input(
+                "Battery capacity (Wh): ",
+                r"\d+",
+                "Battery capacity must be a positive integer.",
+            )
+            if battery_capacity is None:
+                return
+
+            soc = get_valid_input(
+                "Current State of Charge (%): ",
+                r"\d+(\.\d+)?",
+                "SoC must be a number between 0 and 100.",
+                validator=lambda v: (
+                    float(v)
+                    if 0 <= float(v) <= 100
+                    else (_ for _ in ()).throw(
+                        ValueError("SoC must be between 0 and 100.")
+                    )
+                ),
+            )
+            if soc is None:
+                return
+
+            target_range_min = get_valid_input(
+                "Target range minimum SoC (%): ",
+                r"\d+(\.\d+)?",
+                "Must be a number between 0 and 100.",
+                validator=lambda v: (
+                    float(v)
+                    if 0 <= float(v) <= 100
+                    else (_ for _ in ()).throw(
+                        ValueError("Min SoC must be between 0 and 100.")
+                    )
+                ),
+            )
+            if target_range_min is None:
+                return
+
+            target_range_max = get_valid_input(
+                "Target range maximum SoC (%): ",
+                r"\d+(\.\d+)?",
+                "Must be a number between 0 and 100.",
+                validator=lambda v: (
+                    float(v)
+                    if 0 <= float(v) <= 100
+                    else (_ for _ in ()).throw(
+                        ValueError("Max SoC must be between 0 and 100.")
+                    )
+                ),
+            )
+            if target_range_max is None:
+                return
+
+            if float(target_range_min) > float(target_range_max):
+                raise ValueError("Minimum SoC cannot be greater than maximum SoC.")
+
+            latitude = get_valid_input(
+                "Latitude: ",
+                r"-?\d+(\.\d+)?",
+                "Invalid latitude.",
+                validator=lambda v: (
+                    float(v)
+                    if -90 <= float(v) <= 90
+                    else (_ for _ in ()).throw(
+                        ValueError("Latitude must be between -90 and 90.")
+                    )
+                ),
+            )
+            if latitude is None:
+                return
+
+            longitude = get_valid_input(
+                "Longitude: ",
+                r"-?\d+(\.\d+)?",
+                "Invalid longitude.",
+                validator=lambda v: (
+                    float(v)
+                    if -180 <= float(v) <= 180
+                    else (_ for _ in ()).throw(
+                        ValueError("Longitude must be between -180 and 180.")
+                    )
+                ),
+            )
+            if longitude is None:
+                return
+            out_of_service = (
+                get_valid_input(
+                    "Is scooter out of service? (yes/no): ",
+                    r"(yes|no)",
+                    "Enter 'yes' or 'no'.",
+                ).lower()
+                == "yes"
+            )
+            if out_of_service is None:
+                return
+
+            mileage = get_valid_input(
+                "Mileage (km): ",
+                r"\d+(\.\d+)?",
+                "Mileage must be a non-negative number.",
+                validator=lambda v: (
+                    float(v)
+                    if float(v) >= 0
+                    else (_ for _ in ()).throw(
+                        ValueError("Mileage must be non-negative.")
+                    )
+                ),
+            )
+            if mileage is None:
+                return
+
+            last_maintenance = get_valid_input(
+                "Last maintenance date (YYYY-MM-DD): ",
+                validator=lambda v: (
+                    v
+                    if datetime.strptime(v, "%Y-%m-%d")
+                    else (_ for _ in ()).throw(ValueError("Invalid date format."))
+                ),
+            )
+            if last_maintenance is None:
+                return
+
+            in_service_date = get_valid_input(
+                "In service date (YYYY-MM-DD): ",
+                validator=lambda v: (
+                    v
+                    if datetime.strptime(v, "%Y-%m-%d")
+                    else (_ for _ in ()).throw(ValueError("Invalid date format."))
+                ),
+            )
+            if in_service_date is None:
+                return
+
+            scooter = Scooter(
+                brand=brand,
+                model=model,
+                serialNumber=serial_number,
+                topSpeed=int(top_speed),
+                batteryCapacity=int(battery_capacity),
+                SoC=float(soc),
+                targetRangeSoC=[float(target_range_min), float(target_range_max)],
+                location=[float(latitude), float(longitude)],
+                outOfService=out_of_service,
+                mileage=float(mileage),
+                lastMaintenanceDate=last_maintenance,
+                inServiceDate=in_service_date,
+            )
+            scooter.add_to_db()
+
+        except Exception as e:
+            print(f"[ERROR] {e}")
 
     @staticmethod
     def delete_scooter():
@@ -273,6 +416,8 @@ class Scooter:
             error_msg=error_msg,
             validator=validator,
         )
+        if new_value is None:
+            return
 
         if field_choice == "out_of_service":
             new_value = 1 if new_value.lower() == "true" else 0
@@ -373,9 +518,13 @@ class Scooter:
                 print("[INFO] No scooters found.")
 
 
-def get_valid_input(prompt, pattern=None, error_msg=None, validator=None):
+def get_valid_input(
+    prompt, pattern=None, error_msg=None, validator=None, allow_back=True
+):
     while True:
         value = input(prompt).strip()
+        if allow_back and value.lower() == "q":
+            return None  # Signal to go back
         if pattern and not re.fullmatch(pattern, value):
             print(f"[ERROR] {error_msg}")
             continue
