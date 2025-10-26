@@ -5,7 +5,7 @@ from auth.password import input_password, verify_password
 from auth.passwordHash import hash_password
 from ui.terminal import clear_terminal
 from Utils.encryption import Encryptor
-from auth.login import get_user_id_by_username
+from Utils.getUserId import get_user_id_by_username
 
 encryptor = Encryptor()
 

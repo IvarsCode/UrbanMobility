@@ -7,6 +7,7 @@ from Models.user import User
 from Utils.logger import Logger
 from ui.terminal import clear_terminal
 from Utils.encryption import Encryptor
+from Utils.getUserId import get_user_id_by_username
 
 encryptor = Encryptor()
 logger = Logger()
@@ -64,30 +65,3 @@ def login():
 #     conn.commit()
 #     print(f"\nUser '{user.userName}' logged out successfully.")
 #     logger.log(user.userName, f"Logged out", "")
-
-
-def get_user_id_by_username(input_username: str):
-    """
-    Retrieve a user's ID by comparing decrypted usernames.
-    Returns the user ID if found, or None otherwise.
-    """
-    try:
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, username FROM users")
-            rows = cursor.fetchall()
-
-        for user_id, encrypted_username in rows:
-            try:
-                decrypted_username = encryptor.decrypt_text(encrypted_username.encode())
-            except Exception as e:
-                continue
-
-            if decrypted_username.lower() == input_username.lower():
-                return user_id
-
-        return None
-
-    except Exception as e:
-        print(f"[ERROR] Failed to get user id: {e}")
-        return None
