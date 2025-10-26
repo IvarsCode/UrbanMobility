@@ -1,6 +1,6 @@
 # ui/main_menu.py
 
-from auth.login import login
+from auth.login import login, logOut
 from Models.user import User
 from Models.scooter import Scooter, manage_scooter
 from Models.traveler import manage_traveller
