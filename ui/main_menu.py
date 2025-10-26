@@ -150,7 +150,7 @@ def superAdmin(user: User):
             logger.mark_as_read()
         elif choice == "6":
             clear_terminal()
-            backup_menu()
+            backup_menu(user)
             pass
         elif choice == "7":
             clear_terminal()

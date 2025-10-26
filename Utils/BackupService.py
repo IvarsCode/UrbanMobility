@@ -2,7 +2,9 @@ import os
 import shutil
 import datetime
 import uuid
+import zipfile
 from db.database import get_connection, DB_NAME
+from Models.user import User
 from Utils.encryption import Encryptor
 from Utils.logger import Logger
 
@@ -14,35 +16,47 @@ logger = Logger(Encryptor())
 
 class BackupService:
     @staticmethod
-    def make_backup():
+    def make_backup(created_by: str):
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"backup_{timestamp}.db"
-        backup_path = os.path.join(BACKUP_DIR, backup_filename)
+        zip_filename = f"backup_{timestamp}.zip"
+        zip_path = os.path.join(BACKUP_DIR, zip_filename)
 
-        shutil.copy2(DB_NAME, backup_path)
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(DB_NAME, arcname=os.path.basename(DB_NAME))
 
-        with get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO backups (file_name, created_by, created_at)
-                VALUES (?, ?, ?)
-                """,
-                (
-                    backup_filename,
-                    "super_admin",
-                    datetime.datetime.now().isoformat(),
-                ),
+            with get_connection() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO backups (file_name, created_by, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (
+                        zip_filename,
+                        created_by,
+                        datetime.datetime.now().isoformat(),
+                    ),
+                )
+                conn.commit()
+
+            logger.log(
+                username=created_by,
+                description="Created system backup (ZIP)",
+                extra=f"Backup file: {zip_filename}",
             )
-            conn.commit()
 
-        logger.log(
-            username="super_admin",
-            description="Created system backup",
-            extra=f"Backup file: {backup_filename}",
-        )
+            print(f"[INFO] Backup created successfully: {zip_filename}")
+            return zip_filename
 
-        print(f"[INFO] Backup created: {backup_filename}")
-        return backup_filename
+        except Exception as e:
+            logger.log(
+                username=created_by,
+                description="Backup creation failed",
+                extra=str(e),
+                suspicious=True,
+            )
+            raise
 
     @staticmethod
     def generate_restore_code(backup_filename: str, assigned_admin: str):
@@ -139,7 +153,8 @@ class BackupService:
             if not os.path.exists(backup_path):
                 raise FileNotFoundError("Backup file not found.")
 
-            shutil.copy2(backup_path, DB_NAME)
+            with zipfile.ZipFile(backup_path, "r") as zipf:
+                zipf.extract(os.path.basename(DB_NAME), path="data/")
 
             cur.execute(
                 "UPDATE backups SET used = 1 WHERE restore_code = ?",
@@ -157,7 +172,7 @@ class BackupService:
         return True
 
 
-def backup_menu():
+def backup_menu(user: User):
     while True:
         print("\n=== Backup & Restore Menu ===")
         print("1. Create new backup")
@@ -170,14 +185,13 @@ def backup_menu():
 
         if choice == "1":
             try:
-                backup_file = BackupService.make_backup()
+                backup_file = BackupService.make_backup(user.userName)
                 print(f"[SUCCESS] Backup created: {backup_file}")
             except Exception as e:
                 print(f"[ERROR] Failed to create backup: {e}")
 
         elif choice == "2":
             try:
-                # Show available backups
                 with get_connection() as conn:
                     cur = conn.cursor()
                     cur.execute("SELECT file_name, created_at FROM backups")
@@ -280,12 +294,20 @@ def backup_menu():
 def system_admin_backup_menu(admin_username: str):
     while True:
         print("\n=== System Admin Backup Menu ===")
-        print("1. Restore Backup with Code")
-        print("2. Return to Dashboard")
+        print("1. Create backup")
+        print("2. Restore Backup with Code")
+        print("3. Return to Dashboard")
 
         choice = input("Select an option: ").strip()
 
         if choice == "1":
+            try:
+                backup_file = BackupService.make_backup(admin_username)
+                print(f"[SUCCESS] Backup created: {backup_file}")
+            except Exception as e:
+                print(f"[ERROR] Failed to create backup: {e}")
+
+        if choice == "2":
             restore_code = input("Enter your restore code: ").strip()
             try:
                 success = BackupService.restore_backup(
@@ -299,7 +321,7 @@ def system_admin_backup_menu(admin_username: str):
             except Exception as e:
                 print(f"[ERROR] {e}")
 
-        elif choice == "2":
+        elif choice == "3":
             print("Returning to dashboard...")
             break
 
