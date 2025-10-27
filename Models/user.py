@@ -283,7 +283,7 @@ class User:
         except sqlite3.Error as e:
             print("Database error:", e)
 
-    def delete_system_administrator():
+    def delete_system_administrator(self):
         username = input_username("Enter username: ").strip()
         password = input_password("Enter password: ").strip()
 
@@ -332,7 +332,7 @@ class User:
     def add_service_engineer(self):
         clear_terminal()
 
-        if self.role != "super_administrator" or self.role != "system_administrator":
+        if self.role != "super_administrator" and self.role != "system_administrator":
             print("You are unauthorized to add a user")
             return
 
@@ -540,7 +540,9 @@ class User:
                     f"\n=== Users List (From {offset} to {offset + len(users) - 1}) ==="
                 )
                 for username, role in users:
-                    print(f"Username: {username} | Role: {role}")
+                    print(
+                        f"Username: {encryptor.decrypt_text(username.encode())} | Role: {encryptor.decrypt_text(role.encode())}"
+                    )
 
         except Exception as e:
             print("Error fetching users:", e)
