@@ -1,13 +1,14 @@
 # auth/login.py
 
 from db.database import get_connection
-from auth.password import verify_password, input_password
+from auth.password import verify_password
 from auth.passwordHash import hash_password
 from Models.user import User
 from Utils.logger import Logger
 from ui.terminal import clear_terminal
 from Utils.encryption import Encryptor
 from Utils.getUserId import get_user_id_by_username
+from auth.password import input_password_login
 
 encryptor = Encryptor()
 logger = Logger()
@@ -17,7 +18,7 @@ def login():
     clear_terminal()
     print("=== Urban Mobility Backend Login ===")
     username = input("Username: ").strip()
-    password = input_password("Password: ").strip()
+    password = input_password_login("Password: ").strip()
     hashed_pw = hash_password(password)
     conn = get_connection()
     cur = conn.cursor()

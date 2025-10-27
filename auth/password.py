@@ -2,6 +2,7 @@ import re
 import sys
 from db.database import get_connection
 from auth.passwordHash import hash_password
+import msvcrt
 
 
 def verify_password(password: str, stored: str) -> bool:
@@ -115,7 +116,25 @@ def input_username(prompt="Username: "):
         print(" === Please try again. ===\n")
 
 
-# def input_password(prompt="Password: "):
+def input_password_login(prompt="Password: "):
+    print(prompt, end="", flush=True)
+    password = ""
+    while True:
+        ch = msvcrt.getch()
+        if ch in {b"\r", b"\n"}:
+            print()
+            break
+        elif ch == b"\x08":  # Backspace
+            if password:
+                password = password[:-1]
+                print("\b \b", end="", flush=True)
+        else:
+            password += ch.decode("utf-8", errors="ignore")
+            print("*", end="", flush=True)
+    return password
+
+
+# def input_password_login(prompt="Password: "):
 #     print(prompt, end="", flush=True)
 #     password = ""
 
