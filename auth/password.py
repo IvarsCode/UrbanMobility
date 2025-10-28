@@ -120,7 +120,7 @@ def input_password_login(prompt="Password: "):
     print(prompt, end="", flush=True)
     password = ""
     while True:
-        ch = msvcrt.getch()
+        ch = msvcrt.getch() # For Windows
         if ch in {b"\r", b"\n"}:
             print()
             break
