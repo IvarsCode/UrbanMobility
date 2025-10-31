@@ -19,7 +19,7 @@ class Logger:
         )
 
         encrypted = self.encryptor.encrypt_text(entry)
-        with open(LOG_FILE, "ab") as f:
+        with open(LOG_FILE, "ab") as f: # Append in binary mode
             f.write(encrypted + b"\n")
 
     def read_logs(self, only_suspicious=False):

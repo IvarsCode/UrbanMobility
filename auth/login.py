@@ -30,10 +30,10 @@ def login():
         user = cur.fetchone()
         conn.close()
     except:
-        print("[ERROR] No user found.")
+        print("[ERROR] No user found.") # Unclear error message
 
     if user:
-        id, stored_username, stored_hash, role = user
+        id, stored_username, stored_hash, role = user # Unpack tuple
 
         try:
             stored_username = encryptor.decrypt_text(stored_username.encode())

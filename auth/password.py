@@ -6,6 +6,7 @@ import msvcrt
 
 
 def verify_password(password: str, stored: str) -> bool:
+    """Verify if the provided password matches the stored hashed password."""
     return password == stored
 
 

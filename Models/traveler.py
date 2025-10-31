@@ -151,7 +151,7 @@ class Traveller:
         for i, field in enumerate(fields.keys(), 1):
             print(f"{i}. {field}")
 
-        field_choice = input("Enter the field name to update: ").strip()
+        field_choice = input("Enter the field name to update: ").strip() # the name, not the number
         if field_choice not in fields:
             print("[ERROR] Invalid field.")
             return
