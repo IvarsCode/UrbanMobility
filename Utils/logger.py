@@ -37,7 +37,7 @@ class Logger:
                     parts = decrypted.split("|")
                     if len(parts) < 6:
                         continue
-                    if only_suspicious and parts[4] != "Yes":
+                    if only_suspicious and parts[4] != "Yes": # Als only_suspicious is True, filter on suspicious logs
                         continue
                     logs.append(parts)
                 except Exception:

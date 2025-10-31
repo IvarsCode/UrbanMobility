@@ -501,8 +501,8 @@ class Scooter:
                         model = encryptor.decrypt_text(scooter[2].encode()).lower()
                     except Exception:
                         # fallback for unencrypted data
-                        brand = scooter[1].lower() if scooter[1] else ""
-                        model = scooter[2].lower() if scooter[2] else ""
+                        brand = scooter[1].lower() if scooter[1] else "" # could be None
+                        model = scooter[2].lower() if scooter[2] else "" # could be None
 
                     if term in brand or term in model:
                         results.append(scooter)
